@@ -36,7 +36,7 @@ const KEYS = [
     'ws_attemptrow', 'ws_connectionlost', 'ai_tab', 'ai_help', 'ai_explain', 'ai_free', 'ai_cost', 'ai_confirmtitle',
     'ai_confirm', 'ai_blocked', 'ai_loading', 'ai_followup_placeholder', 'ai_followup_send', 'ai_followups_left',
     'ai_status', 'ai_teachernote', 'ai_none', 'ai_kind_test', 'ai_kind_console', 'ai_freehint', 'ai_teacherfree',
-    'ai_nextfree', 'ai_nextcost', 'ai_buy',
+    'ai_nextfree', 'ai_nextcost', 'ai_buy', 'ai_costtitle', 'ai_freetitle',
 ];
 
 const call = (methodname, args) => Ajax.call([{methodname, args}])[0];
@@ -542,11 +542,21 @@ class Workspace {
         return ai.nextcost > 0 ? fmt(this.S.ai_cost, ai.nextcost) : this.S.ai_free;
     }
 
+    costTitle() {
+        const ai = this.ai;
+        if (ai.teacher || ai.blocked) {
+            return this.costLabel();
+        }
+        return ai.nextcost > 0 ? fmt(this.S.ai_costtitle, {cost: ai.nextcost, penalty: ai.penalty, max: ai.max})
+            : this.S.ai_freetitle;
+    }
+
     hintButton(label, handler) {
         if (!this.ai.enabled) {
             return null;
         }
         const btn = h('button.btn.btn-sm.btn-outline-info.mpl-hint-btn', {type: 'button', disabled: !!this.ai.blocked,
+            title: this.costTitle(),
             onClick: (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -559,6 +569,7 @@ class Workspace {
     refreshHintButtons() {
         this.root.querySelectorAll('.mpl-hint-btn').forEach((btn) => {
             btn.textContent = '💡 ' + btn.dataset.label + ' · ' + this.costLabel();
+            btn.title = this.costTitle();
             btn.disabled = !!this.ai.blocked;
         });
     }
