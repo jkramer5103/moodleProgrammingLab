@@ -524,3 +524,8 @@
 .mpl-tb-head .mpl-tb-inline {
     flex-wrap: nowrap;
 }
+
+.mpl-plot-compare.mpl-plot-single {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 30rem;
+}

@@ -16,12 +16,12 @@ from collections import OrderedDict
 import mplcodec
 from mplcodec import show
 
-from . import compare, generators, plots
+from . import codecheck, compare, generators, plots
 from .config import settings
 
 VALUE_TYPES = ("function", "class")
 PROGRAM_TYPES = ("io", "file", "plot")
-ALL_TYPES = VALUE_TYPES + PROGRAM_TYPES
+ALL_TYPES = VALUE_TYPES + PROGRAM_TYPES + ("code",)
 
 
 class ConfigError(ValueError):
@@ -72,6 +72,8 @@ def _limits(req):
 
 
 def _needs_reference(test):
+    if test.get("type") == "code":
+        return False
     if test.get("type") == "plot":
         return True
     return (test.get("expected") or {}).get("source", "reference") == "reference"
@@ -210,6 +212,10 @@ async def evaluate(req, pool):
         test.setdefault("id", "t%d" % (index + 1))
         entry = {"test": test, "instances": [], "config_error": None}
         try:
+            if test.get("type") == "code":
+                entry["instances"] = []
+                prepared.append(entry)
+                continue
             entry["instances"] = build_instances(test, seed)
             if _needs_reference(test) and not reference.strip():
                 raise ConfigError("Für diesen Test wird eine Musterlösung benötigt")
@@ -269,10 +275,25 @@ async def evaluate(req, pool):
             "id": test.get("id"), "name": test.get("name") or test.get("id"), "type": ttype,
             "visibility": test.get("visibility", "visible"), "points": points,
             "awarded": 0.0, "status": "failed", "instances": [], "config_error": entry["config_error"],
+            "random": _has_random(test), "show_expected": test.get("show_expected") or "auto",
+            "required": bool(test.get("required")),
         }
         out_tests.append(out)
         if entry["config_error"]:
             out["status"] = "config_error"
+            continue
+        if ttype == "code":
+            try:
+                fraction, crit, error = codecheck.evaluate(code, test.get("rules") or [])
+            except ValueError as exc:
+                out["config_error"] = str(exc)
+                continue
+            out["instances"].append({
+                "inputs_display": None, "expected_display": None, "actual_display": None,
+                "stdout": "", "stderr": "", "error": error, "fraction": fraction,
+                "passed": error is None and fraction >= 1.0 - 1e-9, "messages": [], "criteria": crit,
+                "plots": None, "duration": 0,
+            })
             continue
         expected_mode = (test.get("expected") or {}).get("source", "reference")
         for inst in entry["instances"]:
@@ -342,7 +363,10 @@ async def evaluate(req, pool):
                     continue
                 if not outcome.ok:
                     ok = False
-                    item["messages"].append(outcome.message or "Ausgabe stimmt nicht mit der Erwartung überein")
+                    item["messages"].append("Ausgabe stimmt nicht mit der Erwartung überein")
+                    if outcome.message:
+                        # May reveal parts of the expected result – hidden together with it.
+                        item["hint"] = outcome.message
             if ok:
                 text_mode = ttype in ("io", "file")
                 for prop in test.get("properties") or []:
@@ -417,7 +441,15 @@ async def evaluate(req, pool):
         else:
             out["status"] = "failed"
 
+    # Required tests ("Pflichttest"): if one fails, the whole task scores 0.
+    gate = [t["name"] for t in out_tests if t["required"] and not t["config_error"] and t["status"] != "passed"]
+    if gate:
+        score = 0.0
+        for t in out_tests:
+            t["awarded"] = 0.0
+
     return {
+        "gate_failed": gate,
         "score": round(score, 4),
         "max_score": round(max_score, 4),
         "seed": seed,

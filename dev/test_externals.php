@@ -116,5 +116,24 @@ try {
 } catch (Exception $e) {
     ok(true, 'student cannot use validate');
 }
+// Hard-coded output: expected result not revealed, required code check gates the score.
+asuser($student);
+$cm = $cms['2 · Primzahlen bis 100'];
+$hard = "print([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97])";
+$json = \mod_mpl\external\check::execute($cm, $hard)['json'];
+$r = json_decode($json, true);
+ok($r['score'] == 0 && $r['gate_failed'] == ['Nicht hart codiert'], 'hard-coded primes: 0 points via required code check');
+$r = json_decode(\mod_mpl\external\check::execute($cm, "print(list(range(1, 101)))")['json'], true);
+$inst = $r['tests'][0]['instances'][0];
+ok($inst['expected_display'] === null && !empty($inst['expected_hidden']) && empty($inst['hint']),
+    'fixed-input test does not reveal expected output');
+ok(strpos(json_encode($r), '89, 97') === false, 'prime list nowhere in student response');
+$loop = "for n in range(2, 101):\n    if all(n % d for d in range(2, n)):\n        print(n)\n";
+$r = json_decode(\mod_mpl\external\check::execute($cm, $loop)['json'], true);
+ok($r['score'] == 10, 'real solution: ' . $r['score']);
+$r = json_decode(\mod_mpl\external\check::execute($cms['3 · Caesar-Verschlüsselung'], "def encrypt(t, s):\n    return t\n")['json'], true);
+ok($r['tests'][2]['instances'][0]['expected_display'] !== null, 'random test still shows expected');
+ok($r['tests'][0]['instances'][0]['expected_display'] === null, 'fixed function test hides expected');
+
 echo $fail ? "\n$fail FAILED\n" : "\nALL OK\n";
 exit($fail ? 1 : 0);

@@ -54,7 +54,7 @@ curl http://localhost:8000/v1/health     # → {"ok":true,"warm":4,"workers":…
 ### 2. Plugin installieren
 
 ```bash
-tooling/package.sh          # → dist/mod_mpl-1.0.0.zip   (oder: Ordner mpl/ nach <moodle>/mod/mpl kopieren)
+tooling/package.sh          # → dist/mod_mpl-1.1.0.zip   (oder: Ordner mpl/ nach <moodle>/mod/mpl kopieren)
 ```
 
 In Moodle: *Website-Administration › Plugins › Plugin installieren* → ZIP hochladen → Upgrade durchführen.
@@ -83,6 +83,7 @@ Aktivität „Programming Lab“ hinzufügen. Im Formular:
 | **Funktion** | `funktion(arg1, arg2, …)` aufrufen und Rückgabewert vergleichen (`if __name__ == "__main__":` wird nicht ausgeführt) |
 | **Klasse** | Objekt erzeugen, Methoden nacheinander aufrufen, Rückgabe / Attribut / `str(obj)` prüfen |
 | **Datei** | Programm starten, Inhalt einer erzeugten Datei vergleichen |
+| **Code-Prüfung** | Quelltext statisch prüfen (siehe unten), z. B. gegen hart codierte Lösungen |
 | **Diagramm** | matplotlib-Diagramm mit dem der Musterlösung vergleichen: Typ, Datenwerte (mit Toleranz), Titel, Achsenbeschriftungen, Legende, Anzahl Reihen – Punkte je Kriterium; beide Bilder werden angezeigt |
 
 **Eingaben/Argumente** sind pro Eintrag wählbar: fester Wert, zufällige Ganzzahl/Kommazahl/Text/Liste, zufällig aus einer Auswahl, True/False. Bei Zufallswerten läuft der Test mehrfach („Zufallsdurchläufe“), jedes Mal mit neuen Werten – hart codierte Lösungen fallen durch.
@@ -107,6 +108,13 @@ def check(result, expected, inputs):
         return False, "Die Elemente stimmen nicht"
     return True                      # oder eine Zahl 0..1 für Teilpunkte
 ```
+
+**Gegen Abschreiben/Hartcodieren:**
+
+* **Erwartetes Ergebnis zeigen** (pro Test): *automatisch* zeigt es nur bei Zufallseingaben – bei festen Eingaben wäre es immer gleich und würde die Lösung verraten. Alternativ *immer* oder *nie*.
+* **Code-Prüfung** (eigener Testtyp): prüft den Quelltext, ohne ihn auszuführen – „verwendet eine Schleife / Funktion / Rekursion …“, „höchstens N Zahlen im Code“, „ruft `sorted()` (nicht) auf“, „importiert (nicht) …“, „höchstens N Zeilen“, Regex.
+* **Pflichttest**: Wird er nicht bestanden, gibt es 0 Punkte für die ganze Aufgabe. Beispiel „Primzahlen bis 100“: Code-Prüfung „verwendet eine Schleife“ + „höchstens 10 Zahlen im Code“ als Pflichttest – eine abgetippte Primzahlliste bringt dann 0 Punkte.
+* Am wirksamsten bleiben Aufgaben mit Eingaben (z. B. „Primzahlen bis n“ mit zufälligem n).
 
 **Sichtbarkeit** je Test: *sichtbar* (Eingabe, erwartet, bekommen, voller Traceback) · *nur Name* (bestanden ja/nein) · *versteckt* (nur in der Gesamtsumme bei der Abgabe, nicht beim Prüfen).
 

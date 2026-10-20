@@ -411,6 +411,7 @@ class manager {
             'tests' => [],
             'hidden' => ['count' => 0, 'passed' => 0, 'points' => 0.0, 'awarded' => 0.0],
             'full' => $full,
+            'gate_failed' => array_values($result['gate_failed'] ?? []),
         ];
         if ($full) {
             $out['seed'] = $result['seed'] ?? null;
@@ -441,10 +442,15 @@ class manager {
             if (!empty($test['config_error'])) {
                 $t['config_error'] = $full ? $test['config_error'] : true;
             }
+            $t['required'] = !empty($test['required']);
+            $showexpected = $full || ($test['type'] ?? '') === 'code' || self::show_expected($test);
             foreach (($test['instances'] ?? []) as $inst) {
                 if ($visibility === 'visible') {
                     if (!$full) {
                         unset($inst['reference_error'], $inst['check_error']);
+                    }
+                    if (!$showexpected) {
+                        $inst = self::strip_expected($inst);
                     }
                     $t['instances'][] = $inst;
                 } else {
@@ -459,5 +465,49 @@ class manager {
             $out['tests'][] = $t;
         }
         return $out;
+    }
+
+    /**
+     * Should students see the expected result of a test?
+     *
+     * "auto": only for tests with random inputs – for fixed inputs the expected
+     * result never changes and would give the solution away.
+     *
+     * @param array $test test of a runner result
+     * @return bool
+     */
+    public static function show_expected(array $test): bool {
+        $mode = $test['show_expected'] ?? 'auto';
+        if ($mode === 'always') {
+            return true;
+        }
+        if ($mode === 'never') {
+            return false;
+        }
+        return !empty($test['random']);
+    }
+
+    /**
+     * Remove everything from an instance that reveals the expected result.
+     *
+     * @param array $inst
+     * @return array
+     */
+    protected static function strip_expected(array $inst): array {
+        $inst['expected_display'] = null;
+        $inst['expected_hidden'] = true;
+        unset($inst['hint']);
+        if (!empty($inst['plots'])) {
+            $inst['plots']['reference'] = [];
+        }
+        if (!empty($inst['criteria'])) {
+            foreach ($inst['criteria'] as &$c) {
+                if (in_array($c['key'] ?? '', ['title', 'xlabel', 'ylabel', 'legend', 'kind', 'count'])) {
+                    $c['message'] = '';
+                }
+            }
+            unset($c);
+        }
+        return $inst;
     }
 }

@@ -21,10 +21,12 @@
     "starter": "",
     "reference": "print([n for n in range(2, 101) if all(n % d for d in range(2, n))])\n",
     "tests": [
-      {"id": "primes", "name": "Alle Primzahlen", "type": "io", "points": 8, "visibility": "visible",
+      {"id": "primes", "name": "Alle Primzahlen", "type": "io", "points": 6, "visibility": "visible",
        "expected": {"source": "reference"}, "compare": {"mode": "numbers"}},
       {"id": "sortiert", "name": "Aufsteigend & ohne Doppelte", "type": "io", "points": 2, "visibility": "visible",
-       "expected": {"source": "none"}, "properties": [{"type": "sorted"}, {"type": "unique"}, {"type": "nonempty"}]}
+       "expected": {"source": "none"}, "properties": [{"type": "sorted"}, {"type": "unique"}, {"type": "nonempty"}]},
+      {"id": "nohardcode", "name": "Nicht hart codiert", "type": "code", "points": 2, "visibility": "visible",
+       "required": true, "rules": [{"type": "uses", "value": "loop"}, {"type": "max_numbers", "value": 10}]}
     ]
   },
   {

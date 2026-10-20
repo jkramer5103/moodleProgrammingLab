@@ -95,6 +95,17 @@ with sync_playwright() as p:
     print("plot check:", page.inner_text(".mpl-result-score"))
     page.screenshot(path=SHOTS + "6_plot.png", full_page=True)
 
+    # hardcode_check: primes hard-coded -> 0 points, expected hidden
+    page.goto(BASE + "/mod/mpl/view.php?id=" + ids["Primzahlen"])
+    page.wait_for_selector(".mpl-editor .cm-content")
+    page.click(".mpl-editor .cm-content")
+    page.keyboard.press("Control+a")
+    page.keyboard.type("print([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97])")
+    page.click(".mpl-toolbar .btn-primary")
+    page.wait_for_selector(".mpl-results .alert-danger", timeout=60000)
+    print("hardcoded primes:", page.inner_text(".mpl-result-score"), "|", page.inner_text(".mpl-results .alert-danger"))
+    page.screenshot(path=SHOTS + "11_hardcoded.png", full_page=True)
+
     # teacher: form with test builder + validate
     ctx = b.new_context(viewport={"width": 1440, "height": 950})
     page = ctx.new_page()
@@ -119,6 +130,13 @@ with sync_playwright() as p:
     page.locator("#id_submitbutton2").click()
     page.wait_for_load_state("networkidle")
     print("saved form ->", page.url)
+
+    # builder with a code check test
+    page.goto(BASE + "/course/modedit.php?update=" + ids["Primzahlen"])
+    page.wait_for_selector(".mpl-tb-card")
+    page.locator(".mpl-tb-card .mpl-tb-head button.btn-link").nth(2).click()
+    page.wait_for_selector(".mpl-tb-body")
+    page.screenshot(path=SHOTS + "12_codecheck_builder.png", full_page=True)
 
     # new activity form
     page.goto(BASE + "/course/modedit.php?add=mpl&type=&course=2&section=1&return=0&sr=0")

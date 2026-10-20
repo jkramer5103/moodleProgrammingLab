@@ -54,9 +54,17 @@ const KEYS = [
     'type_io', 'type_function', 'type_class', 'type_file', 'type_plot', 'vis_visible', 'vis_nameonly', 'vis_hidden',
     'tb_typehelp_io', 'tb_typehelp_function', 'tb_typehelp_class', 'tb_typehelp_file', 'tb_typehelp_plot',
     'tb_noinputs', 'tb_remove', 'tb_expand', 'tb_collapse', 'tb_points_plot', 'tb_vishelp',
+    'type_code', 'tb_typehelp_code', 'tb_rules', 'tb_addrule', 'tb_required', 'tb_required_help', 'tb_showexpected',
+    'showexp_auto', 'showexp_always', 'showexp_never', 'rule_uses', 'rule_not_uses', 'rule_calls', 'rule_not_calls',
+    'rule_imports', 'rule_not_imports', 'rule_max_numbers', 'rule_max_lines', 'rule_contains', 'rule_not_contains',
+    'construct_for', 'construct_while', 'construct_loop', 'construct_if', 'construct_def', 'construct_class',
+    'construct_comprehension', 'construct_recursion', 'construct_return', 'construct_try', 'tb_rules_points',
 ];
 
-const TYPES = ['io', 'function', 'class', 'file', 'plot'];
+const TYPES = ['io', 'function', 'class', 'file', 'plot', 'code'];
+const RULES = ['uses', 'not_uses', 'max_numbers', 'calls', 'not_calls', 'imports', 'not_imports', 'max_lines',
+    'contains', 'not_contains'];
+const CONSTRUCTS = ['loop', 'for', 'while', 'if', 'def', 'class', 'comprehension', 'recursion', 'return', 'try'];
 const KINDS = ['fixed', 'int', 'float', 'str', 'choice', 'list', 'bool'];
 const ITEM_KINDS = ['int', 'float', 'str', 'choice', 'bool', 'fixed'];
 const TEXT_CMP = ['lines', 'exact', 'tokens', 'unordered', 'unordered_lines', 'numbers', 'numbers_unordered',
@@ -97,6 +105,13 @@ const newTest = (type, n, S) => {
     }
     if (type === 'plot') {
         t.plot = {tolerance: 0.01, criteria: defaultCriteria()};
+    }
+    if (type === 'code') {
+        t.rules = [{type: 'uses', value: 'loop'}, {type: 'max_numbers', value: 10}];
+        delete t.inputs;
+        delete t.expected;
+        delete t.compare;
+        delete t.properties;
     }
     return t;
 };
@@ -379,6 +394,12 @@ class Builder {
         const S = this.S;
         const body = h('div.mpl-tb-body');
         body.appendChild(h('div.mpl-tb-help.text-muted.small.mb-2', {text: S['tb_typehelp_' + t.type]}));
+        body.appendChild(h('div.mb-2', null, [this.check(t, 'required', S.tb_required),
+            h('span.small.text-muted', {text: S.tb_required_help})]));
+        if (t.type === 'code') {
+            body.appendChild(this.rulesSection(t));
+            return body;
+        }
         const literal = t.type === 'function' || t.type === 'class';
         t.inputs = t.inputs || [];
 
@@ -495,7 +516,49 @@ class Builder {
                 this.check(t.compare, 'ignore_case', S.tb_ignorecase),
             ]));
             sec.appendChild(h('div.mpl-tb-help.text-muted.small', {text: S['cmp_help_' + t.compare.mode]}));
+            sec.appendChild(this.showExpectedField(t));
         }
+        return sec;
+    }
+
+    showExpectedField(t) {
+        const S = this.S;
+        if (!t.show_expected) {
+            t.show_expected = 'auto';
+        }
+        return h('div.mpl-tb-inline.mt-2', null, [h('span.small', {text: S.tb_showexpected}),
+            this.select(t, 'show_expected', ['auto', 'always', 'never'].map((x) => [x, S['showexp_' + x]]), false)]);
+    }
+
+    rulesSection(t) {
+        const S = this.S;
+        t.rules = t.rules || [];
+        const sec = h('div.mpl-tb-section', null, [h('div.mpl-tb-section-title', {text: S.tb_rules}),
+            h('div.mpl-tb-help.text-muted.small.mb-2', {text: S.tb_rules_points})]);
+        t.rules.forEach((r, ri) => {
+            const f = [this.select(r, 'type', RULES.map((x) => [x, S['rule_' + x]]), true, (type) => {
+                r.value = {uses: 'loop', not_uses: 'loop', max_numbers: 10, max_lines: 20}[type] || '';
+            })];
+            if (r.type === 'uses' || r.type === 'not_uses') {
+                f.push(this.select(r, 'value', CONSTRUCTS.map((x) => [x, S['construct_' + x]]), false));
+            } else if (r.type === 'max_numbers' || r.type === 'max_lines') {
+                f.push(this.number(r, 'value', {min: 0, step: 1}));
+            } else {
+                f.push(this.text(r, 'value', {class: 'mpl-tb-mono mpl-tb-grow',
+                    placeholder: r.type.endsWith('contains') ? 'Regex' : 'print'}));
+            }
+            f.push(this.iconBtn('✕', S.tb_remove, () => {
+                t.rules.splice(ri, 1);
+                this.save();
+                this.render();
+            }, 'btn-link.text-danger'));
+            sec.appendChild(h('div.mpl-tb-valuerow', null, f));
+        });
+        sec.appendChild(h('button.btn.btn-link.btn-sm.p-0', {type: 'button', onClick: () => {
+            t.rules.push({type: 'uses', value: 'loop'});
+            this.save();
+            this.render();
+        }}, '+ ' + S.tb_addrule));
         return sec;
     }
 
@@ -555,6 +618,7 @@ class Builder {
             h('table.table.table-sm.mpl-tb-criteria', null, h('tbody', null, rows)),
             h('div.mpl-tb-inline', null, [h('span.small', {text: S.tb_plottolerance}),
                 this.number(t.plot, 'tolerance', {min: 0})]),
+            this.showExpectedField(t),
         ]);
     }
 }

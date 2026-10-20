@@ -140,7 +140,8 @@ class mod_mpl_mod_form extends moodleform_mod {
             $tests = \mod_mpl\manager::decode_tests($data['tests']);
             $needsref = false;
             foreach ($tests as $t) {
-                if (($t['type'] ?? '') === 'plot' || (($t['expected']['source'] ?? 'reference') === 'reference')) {
+                $type = $t['type'] ?? '';
+                if ($type === 'plot' || ($type !== 'code' && ($t['expected']['source'] ?? 'reference') === 'reference')) {
                     $needsref = true;
                 }
             }

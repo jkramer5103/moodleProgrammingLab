@@ -31,7 +31,7 @@ export const STRING_KEYS = [
     'res_notests', 'res_checkmode', 'res_submitmode', 'res_validatemode', 'res_referror', 'res_seed',
     'res_noexpected', 'res_messages', 'res_showall', 'res_grade', 'res_duration', 'type_io', 'type_function',
     'type_class', 'type_file', 'type_plot', 'vis_visible', 'vis_nameonly', 'vis_hidden', 'res_nooutput', 'crit_figure', 'crit_kind', 'crit_count', 'crit_data', 'crit_title',
-    'crit_xlabel', 'crit_ylabel', 'crit_legend',
+    'crit_xlabel', 'crit_ylabel', 'crit_legend', 'type_code', 'res_required', 'res_gate', 'res_expectedhidden',
 ];
 
 let stringsPromise = null;
@@ -90,7 +90,9 @@ const plotImages = (plots, S) => {
         h('div.mpl-label', {text: title}),
         (list || []).filter(Boolean).map((png) => h('img.mpl-plot-img', {src: 'data:image/png;base64,' + png, alt: title})),
     ]);
-    return h('div.mpl-plot-compare', null, [col(S.res_yourplot, plots.student), col(S.res_expectedplot, plots.reference)]);
+    const hasReference = (plots.reference || []).some(Boolean);
+    return h('div.mpl-plot-compare' + (hasReference ? '' : '.mpl-plot-single'), null, [
+        col(S.res_yourplot, plots.student), hasReference ? col(S.res_expectedplot, plots.reference) : null]);
 };
 
 const criteriaTable = (criteria, S) => h('table.mpl-criteria.table.table-sm', null, [
@@ -121,12 +123,18 @@ const instanceView = (test, inst, index, S, full) => {
             ' ' + fmt(S.res_instance, index + 1),
         ]));
     }
-    if (inst.inputs_display !== undefined && test.type !== 'plot') {
+    if (test.type === 'code') {
+        if (inst.criteria) {
+            parts.push(criteriaTable(inst.criteria, S));
+        }
+    } else if (inst.inputs_display !== undefined && inst.inputs_display !== null && test.type !== 'plot') {
         parts.push(h('div.mpl-label', {text: S.res_input}), pre(inst.inputs_display));
     } else if (test.type === 'plot' && inst.inputs_display && inst.inputs_display !== '(keine Eingabe)') {
         parts.push(h('div.mpl-label', {text: S.res_input}), pre(inst.inputs_display));
     }
-    if (test.type === 'plot') {
+    if (test.type === 'code') {
+        // Criteria only.
+    } else if (test.type === 'plot') {
         if (inst.criteria) {
             parts.push(criteriaTable(inst.criteria, S));
         }
@@ -142,8 +150,12 @@ const instanceView = (test, inst, index, S, full) => {
     } else if (inst.actual_display !== null && inst.actual_display !== undefined) {
         parts.push(h('div.mpl-label', {text: S.res_actual}), pre(inst.actual_display));
     }
-    if (inst.messages && inst.messages.length) {
-        parts.push(h('ul.mpl-messages', null, inst.messages.filter(Boolean).map((m) => h('li', {text: m}))));
+    const messages = (inst.messages || []).concat(inst.hint ? [inst.hint] : []).filter(Boolean);
+    if (messages.length) {
+        parts.push(h('ul.mpl-messages', null, messages.map((m) => h('li', {text: m}))));
+    }
+    if (inst.expected_hidden && !inst.passed) {
+        parts.push(h('div.small.text-muted.mpl-expected-hidden', {text: S.res_expectedhidden}));
     }
     if (inst.error) {
         parts.push(errorBox(inst.error, S));
@@ -174,6 +186,9 @@ const instanceView = (test, inst, index, S, full) => {
 const testView = (test, S, full) => {
     const status = test.status || 'failed';
     const badges = [h('span.badge.bg-light.text-dark.badge-light.mpl-badge', {text: S['type_' + test.type] || test.type})];
+    if (test.required) {
+        badges.push(h('span.badge.bg-warning.text-dark.badge-warning.mpl-badge', {text: S.res_required}));
+    }
     if (full && test.visibility && test.visibility !== 'visible') {
         badges.push(h('span.badge.bg-secondary.badge-secondary.mpl-badge', {text: S['vis_' + test.visibility]}));
     }
@@ -248,6 +263,9 @@ export const render = async(container, result) => {
     }
     if (result.currentgrade) {
         container.appendChild(h('div.small.text-muted.mb-2', {text: fmt(S.res_currentgrade, result.currentgrade)}));
+    }
+    if (result.gate_failed && result.gate_failed.length) {
+        container.appendChild(h('div.alert.alert-danger.py-2', {text: fmt(S.res_gate, result.gate_failed.join(', '))}));
     }
     if (!result.tests.length && !result.hidden.count) {
         container.appendChild(h('div.alert.alert-info', {text: S.res_notests}));

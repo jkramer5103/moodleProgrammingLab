@@ -167,6 +167,34 @@ def test_plot():
     assert r["score"] == 0
 
 
+PRIME_TESTS = [
+    {"id": "primes", "name": "Alle Primzahlen", "type": "io", "points": 6,
+     "expected": {"source": "reference"}, "compare": {"mode": "numbers"}},
+    {"id": "nohardcode", "name": "Nicht hart codiert", "type": "code", "points": 2, "required": True,
+     "rules": [{"type": "uses", "value": "loop"}, {"type": "max_numbers", "value": 10}]},
+]
+
+
+def test_code_check_and_required_gate():
+    loop = "for n in range(2, 101):\n    if all(n % d for d in range(2, n)):\n        print(n)\n"
+    r = evaluate(loop, PRIME_TESTS, PRIMES_REF)
+    assert r["score"] == 8 and not r["gate_failed"], r
+    hard = "print([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97])"
+    r = evaluate(hard, PRIME_TESTS, PRIMES_REF)
+    assert r["score"] == 0 and r["gate_failed"] == ["Nicht hart codiert"], r
+    crit = r["tests"][1]["instances"][0]["criteria"]
+    assert [c["passed"] for c in crit] == [False, False]
+    r = evaluate("for i in range(:", PRIME_TESTS, PRIMES_REF)
+    assert r["tests"][1]["instances"][0]["error"]["type"] == "SyntaxError"
+
+
+def test_flags_for_expected_display():
+    r = evaluate(PRIMES_REF, PRIME_TESTS, PRIMES_REF)
+    assert r["tests"][0]["random"] is False and r["tests"][0]["show_expected"] == "auto"
+    r = evaluate(CAESAR_REF, CAESAR_TESTS, CAESAR_REF)
+    assert r["tests"][1]["random"] is True
+
+
 def test_reference_error_is_config_error():
     r = evaluate("def f(): return 1", [{"id": "x", "type": "function", "function": "f", "points": 1,
                                          "expected": {"source": "reference"}}], "def g(): pass")
