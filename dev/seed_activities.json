@@ -564,5 +564,199 @@
     }
    }
   ]
+ },
+ {
+  "name": "7 · Klammerprüfer (KI-Hilfe)",
+  "intro": "<p>Ein Code-Editor soll anzeigen, ob die Klammern <code>()</code>, <code>[]</code> und <code>{}</code> in einem Text stimmen. Alle anderen Zeichen werden ignoriert.</p><p><strong>a)</strong> <code>ausgeglichen(text)</code> gibt <code>True</code> zurück, wenn jede Klammer passend geschlossen wird und richtig verschachtelt ist – sonst <code>False</code>. Beispiele: <code>\"(a[b]{c})\"</code> → <code>True</code>, <code>\"([)]\"</code> → <code>False</code>, <code>\"\"</code> → <code>True</code>.</p><p><strong>b)</strong> <code>fehlerstelle(text)</code> gibt die Position (Index) des Fehlers zurück:</p><ul><li>Steht eine schließende Klammer da, die nicht zur zuletzt geöffneten passt (oder es ist gar keine offen), ist das die Fehlerstelle.</li><li>Sind am Ende noch Klammern offen, ist die Fehlerstelle die <em>erste</em> davon (die am weitesten links).</li><li>Ist alles in Ordnung: <code>-1</code>.</li></ul><p>Beispiele: <code>\")(\"</code> → 0, <code>\"([)]\"</code> → 2, <code>\"(()\"</code> → 0, <code>\"a{b}\"</code> → -1.</p><p><em>Tipp: Überlege, welche Datenstruktur sich merkt, was zuletzt geöffnet wurde.</em> Bei dieser Aufgabe gibt es KI-Hilfe über „Hilf mir“.</p>",
+  "starter": "def ausgeglichen(text):\n    # Dein Code hier\n    pass\n\n\ndef fehlerstelle(text):\n    # Dein Code hier\n    pass\n",
+  "reference": "def fehlerstelle(text):\n    paare = {')': '(', ']': '[', '}': '{'}\n    offen = []\n    for i, zeichen in enumerate(text):\n        if zeichen in '([{':\n            offen.append((zeichen, i))\n        elif zeichen in paare:\n            if not offen or offen[-1][0] != paare[zeichen]:\n                return i\n            offen.pop()\n    if offen:\n        return offen[0][1]\n    return -1\n\n\ndef ausgeglichen(text):\n    return fehlerstelle(text) == -1\n",
+  "aihints": 1,
+  "aifree": 1,
+  "aicost": 5,
+  "aimax": 35,
+  "tests": [
+   {
+    "id": "a_bsp",
+    "name": "a) Beispiele",
+    "type": "function",
+    "function": "ausgeglichen",
+    "points": 2,
+    "visibility": "visible",
+    "show_expected": "always",
+    "repeat": 4,
+    "inputs": [
+     {
+      "kind": "choice",
+      "options": "'(a[b]{c})', '([)]', '', '{[()()]}x'"
+     }
+    ],
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   },
+   {
+    "id": "a_ok",
+    "name": "a) Korrekt verschachtelt",
+    "type": "function",
+    "function": "ausgeglichen",
+    "points": 2,
+    "visibility": "visible",
+    "show_expected": "always",
+    "repeat": 4,
+    "inputs": [
+     {
+      "kind": "choice",
+      "options": "'(((())))', '[]{}()', '{a[b(c)d]e}', 'x(y)[z]{}'"
+     }
+    ],
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   },
+   {
+    "id": "a_tricky",
+    "name": "a) Gleich viele, aber falsch",
+    "type": "function",
+    "function": "ausgeglichen",
+    "points": 2,
+    "visibility": "visible",
+    "show_expected": "always",
+    "repeat": 4,
+    "inputs": [
+     {
+      "kind": "choice",
+      "options": "')(', '([)]', '{(})', ']][['"
+     }
+    ],
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   },
+   {
+    "id": "a_rand",
+    "name": "a) Zufällige Texte",
+    "type": "function",
+    "function": "ausgeglichen",
+    "points": 2,
+    "visibility": "visible",
+    "repeat": 8,
+    "inputs": [
+     {
+      "kind": "str",
+      "charset": "custom",
+      "chars": "()[]{}ab",
+      "min_len": 0,
+      "max_len": 12
+     }
+    ],
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   },
+   {
+    "id": "b_bsp",
+    "name": "b) Beispiele",
+    "type": "function",
+    "function": "fehlerstelle",
+    "points": 3,
+    "visibility": "visible",
+    "show_expected": "always",
+    "repeat": 6,
+    "inputs": [
+     {
+      "kind": "choice",
+      "options": "')(', '([)]', '(()', 'a{b}', 'x}y', '((]'"
+     }
+    ],
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   },
+   {
+    "id": "b_open",
+    "name": "b) Offene Klammern am Ende",
+    "type": "function",
+    "function": "fehlerstelle",
+    "points": 2,
+    "visibility": "visible",
+    "show_expected": "always",
+    "repeat": 4,
+    "inputs": [
+     {
+      "kind": "choice",
+      "options": "'ab(c[d', '{}((', 'x{y(z)', '[[]'"
+     }
+    ],
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   },
+   {
+    "id": "b_rand",
+    "name": "b) Zufällige Texte",
+    "type": "function",
+    "function": "fehlerstelle",
+    "points": 4,
+    "visibility": "visible",
+    "repeat": 10,
+    "inputs": [
+     {
+      "kind": "str",
+      "charset": "custom",
+      "chars": "()[]{}ab",
+      "min_len": 1,
+      "max_len": 14
+     }
+    ],
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   },
+   {
+    "id": "versteckt",
+    "name": "Weitere Fälle",
+    "type": "function",
+    "function": "fehlerstelle",
+    "points": 2,
+    "visibility": "hidden",
+    "repeat": 6,
+    "inputs": [
+     {
+      "kind": "str",
+      "charset": "custom",
+      "chars": "(()[]{}{x",
+      "min_len": 10,
+      "max_len": 30
+     }
+    ],
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   }
+  ]
  }
 ]
