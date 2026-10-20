@@ -48,6 +48,30 @@ export const strings = () => {
     return stringsPromise;
 };
 
+/**
+ * Minimal, safe markdown for AI hints: paragraphs, `code`, **bold**.
+ *
+ * @param {String} text
+ * @returns {HTMLElement}
+ */
+export const hintText = (text) => {
+    const box = h('div.mpl-hint-text');
+    String(text || '').split(/\n{2,}/).forEach((para) => {
+        const p = h('p');
+        para.split(/(`[^`]+`|\*\*[^*]+\*\*)/).forEach((part) => {
+            if (/^`[^`]+`$/.test(part)) {
+                p.appendChild(h('code', {text: part.slice(1, -1)}));
+            } else if (/^\*\*[^*]+\*\*$/.test(part)) {
+                p.appendChild(h('strong', {text: part.slice(2, -2)}));
+            } else if (part) {
+                p.appendChild(document.createTextNode(part.replace(/```[a-z]*/g, '')));
+            }
+        });
+        box.appendChild(p);
+    });
+    return box;
+};
+
 const ICONS = {passed: '✔', failed: '✖', partial: '◐', error: '⚠', config_error: '⚙'};
 
 /**
@@ -183,7 +207,7 @@ const instanceView = (test, inst, index, S, full) => {
  * @param {Boolean} full
  * @returns {HTMLElement}
  */
-const testView = (test, S, full) => {
+const testView = (test, S, full, opts) => {
     const status = test.status || 'failed';
     const badges = [h('span.badge.bg-light.text-dark.badge-light.mpl-badge', {text: S['type_' + test.type] || test.type})];
     if (test.required) {
@@ -228,6 +252,12 @@ const testView = (test, S, full) => {
             body.appendChild(rest);
         }
     }
+    if (opts.hintButton && test.detail && test.visibility === 'visible' && status !== 'passed' && !test.config_error) {
+        const btn = opts.hintButton(test);
+        if (btn) {
+            body.appendChild(h('div.mpl-hint-actions', null, btn));
+        }
+    }
     const open = status !== 'passed';
     return h('details.mpl-test.mpl-test-' + status, {open}, [summary, body]);
 };
@@ -237,9 +267,11 @@ const testView = (test, S, full) => {
  *
  * @param {HTMLElement} container
  * @param {Object} result filtered result from the server
+ * @param {Object} [opts]
+ * @param {Function} [opts.hintButton] returns a "help me" button for a failed visible test
  * @returns {Promise<void>}
  */
-export const render = async(container, result) => {
+export const render = async(container, result, opts = {}) => {
     const S = await strings();
     clear(container);
     const full = !!result.full;
@@ -270,7 +302,7 @@ export const render = async(container, result) => {
     if (!result.tests.length && !result.hidden.count) {
         container.appendChild(h('div.alert.alert-info', {text: S.res_notests}));
     }
-    result.tests.forEach((test) => container.appendChild(testView(test, S, full)));
+    result.tests.forEach((test) => container.appendChild(testView(test, S, full, opts)));
     if (result.hidden && result.hidden.count) {
         container.appendChild(h('div.mpl-test.mpl-hidden-summary', null, [
             h('span.mpl-status-icon', {text: '🔒'}),

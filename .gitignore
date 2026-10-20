@@ -4,3 +4,5 @@ tooling/node_modules/
 dist/
 runner/.env
 __pycache__/
+dev/.env
+dev/aimock-log/

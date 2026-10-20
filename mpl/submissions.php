@@ -59,6 +59,9 @@ foreach ($DB->get_records_sql("SELECT s.id, s.userid, s.fraction, s.attempt
     $last[$r->userid] = $r;
 }
 
+$hintstats = $DB->get_records_sql("SELECT userid, COUNT(1) AS n, SUM(cost) AS cost
+                                      FROM {mpl_hints} WHERE mplid = ? GROUP BY userid", [$mpl->id]);
+
 $gradeitem = grade_get_grades($manager->course->id, 'mod', 'mpl', $mpl->id, array_keys($users));
 $gradebook = [];
 if (!empty($gradeitem->items[0]->grades)) {
@@ -70,7 +73,8 @@ if (!empty($gradeitem->items[0]->grades)) {
 $table = new html_table();
 $table->attributes['class'] = 'generaltable mpl-submissions-table';
 $table->head = [get_string('fullname'), get_string('attempts', 'mpl'), get_string('bestgrade', 'mpl'),
-    get_string('lastgrade', 'mpl'), get_string('gradebookgrade', 'mpl'), get_string('lastsubmission', 'mpl'), ''];
+    get_string('lastgrade', 'mpl'), get_string('aihintscolumn', 'mpl'), get_string('gradebookgrade', 'mpl'),
+    get_string('lastsubmission', 'mpl'), ''];
 $submitted = 0;
 foreach ($users as $user) {
     $s = $stats[$user->id] ?? null;
@@ -88,6 +92,9 @@ foreach ($users as $user) {
         $s ? (int)$s->attempts : 0,
         $s ? $manager->format_grade((float)$s->best) : '-',
         $l ? $manager->format_grade((float)$l->fraction) : '-',
+        !empty($hintstats[$user->id]) ? html_writer::link(new moodle_url('/mod/mpl/hints.php',
+            ['id' => $cm->id, 'userid' => $user->id]), $hintstats[$user->id]->n . ' (−' .
+            format_float(min((float)$mpl->aimax, (float)$hintstats[$user->id]->cost), 0) . ' %)') : '-',
         $gradetext,
         $s ? userdate($s->lastsubmit, get_string('strftimedatetimeshort', 'langconfig')) : '-',
         $l ? html_writer::link(new moodle_url('/mod/mpl/submission.php', ['id' => $l->id]),

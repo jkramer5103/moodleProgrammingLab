@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Body, Depends, FastAPI, Header, HTTPException
 
-from . import grader
+from . import ai, grader
 from .config import settings
 from .sandbox import Pool, SandboxError, cleanup_stale
 from .sessions import SessionManager
@@ -33,7 +33,7 @@ async def lifespan(app):
     await pool.close()
 
 
-app = FastAPI(title="Moodle Programming Lab Runner", version="1.0.0", lifespan=lifespan,
+app = FastAPI(title="Moodle Programming Lab Runner", version="1.2.0", lifespan=lifespan,
               docs_url=None, redoc_url=None, openapi_url=None)
 
 
@@ -53,7 +53,16 @@ async def health():
 @app.get("/v1/info", dependencies=[Depends(auth)])
 async def info():
     return {"ok": True, "version": app.version, "max_timeout": settings.max_timeout,
-            "max_memory_mb": settings.max_memory_mb, "image": settings.image}
+            "max_memory_mb": settings.max_memory_mb, "image": settings.image,
+            "ai": ai.enabled(), "ai_model": settings.ai_model if ai.enabled() else None}
+
+
+@app.post("/v1/hint", dependencies=[Depends(auth)])
+async def hint(req: dict = Body(...)):
+    try:
+        return await ai.hint(req)
+    except ai.AIError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
 
 
 @app.post("/v1/evaluate", dependencies=[Depends(auth)])

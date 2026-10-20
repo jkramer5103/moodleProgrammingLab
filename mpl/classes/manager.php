@@ -301,8 +301,10 @@ class manager {
             return $full || ($t['visibility'] ?? 'visible') !== 'hidden';
         }));
         $result = (new runner())->evaluate($code, (string)$this->mpl->reference, $tests, $this->limits());
+        $this->remember_result($userid, $code, $result);
         $out = self::filter_result($result, $full);
         $out['mode'] = 'check';
+        $out['ai'] = $this->hint_state($userid);
         return $out;
     }
 
@@ -342,6 +344,7 @@ class manager {
             'timecreated' => time(),
         ];
         $record->id = $DB->insert_record('mpl_submissions', $record);
+        $this->remember_result($userid, $code, $result);
         mpl_update_grades($this->mpl, $userid);
 
         \mod_mpl\event\submission_created::create([
@@ -358,6 +361,7 @@ class manager {
         $out['grade'] = $this->format_grade($record->fraction);
         $out['attemptsleft'] = $this->attempts_left($userid);
         $out['currentgrade'] = $this->current_grade_text($userid);
+        $out['ai'] = $this->hint_state($userid);
         return $out;
     }
 
@@ -391,6 +395,11 @@ class manager {
             return (float)$s->fraction;
         }, $subs);
         $value = $this->mpl->grademethod == MPL_GRADE_LAST ? end($fractions) : max($fractions);
+        $penalty = $this->hint_penalty($userid);
+        if ($penalty > 0) {
+            return $this->format_grade($value * (1 - $penalty / 100)) . ' ' .
+                get_string('aipenaltyincluded', 'mpl', format_float($penalty, 0));
+        }
         return $this->format_grade($value);
     }
 
@@ -509,5 +518,290 @@ class manager {
             unset($c);
         }
         return $inst;
+    }
+
+    // ----------------------------------------------------------------------
+    // AI hints
+    // ----------------------------------------------------------------------
+
+    /** Follow-up questions per hint. */
+    const MAX_FOLLOWUPS = 3;
+
+    /**
+     * Remember the full result of the last check/submission (for AI hints).
+     *
+     * @param int $userid
+     * @param string $code
+     * @param array $result
+     */
+    protected function remember_result(int $userid, string $code, array $result): void {
+        $cache = \cache::make('mod_mpl', 'lastresult');
+        $cache->set($this->mpl->id . '_' . $userid, ['code' => sha1($code), 'result' => $result]);
+    }
+
+    /**
+     * Total deduction for AI hints in percent (capped).
+     *
+     * @param int $userid
+     * @return float
+     */
+    public function hint_penalty(int $userid): float {
+        global $DB;
+        $sum = (float)$DB->get_field_sql('SELECT COALESCE(SUM(cost), 0) FROM {mpl_hints} WHERE mplid = ? AND userid = ?',
+            [$this->mpl->id, $userid]);
+        return min((float)$this->mpl->aimax, $sum);
+    }
+
+    /**
+     * Hint status for the UI.
+     *
+     * @param int $userid
+     * @return array
+     */
+    public function hint_state(int $userid): array {
+        global $DB;
+        if (empty($this->mpl->aihints)) {
+            return ['enabled' => false];
+        }
+        $used = $DB->count_records('mpl_hints', ['mplid' => $this->mpl->id, 'userid' => $userid]);
+        $penalty = $this->hint_penalty($userid);
+        $free = max(0, (int)$this->mpl->aifree - $used);
+        $teacher = $this->can_grade();
+        $cost = 0.0;
+        $blocked = false;
+        if (!$teacher && $free <= 0) {
+            $room = (float)$this->mpl->aimax - $penalty;
+            if ($room <= 0.0001) {
+                $blocked = true;
+            } else {
+                $cost = min((float)$this->mpl->aicost, $room);
+            }
+        }
+        return [
+            'enabled' => true,
+            'used' => $used,
+            'free' => $teacher ? null : $free,
+            'penalty' => $penalty,
+            'nextcost' => $cost,
+            'max' => (float)$this->mpl->aimax,
+            'blocked' => $blocked,
+            'teacher' => $teacher,
+            'maxfollowups' => self::MAX_FOLLOWUPS,
+        ];
+    }
+
+    /**
+     * Context of a failed, fully visible test – exactly what the student can see.
+     *
+     * @param int $userid
+     * @param string $code
+     * @param string $testid
+     * @return array [context for the AI, title]
+     */
+    protected function test_context(int $userid, string $code, string $testid): array {
+        $cache = \cache::make('mod_mpl', 'lastresult');
+        $entry = $cache->get($this->mpl->id . '_' . $userid);
+        if ($entry && $entry['code'] === sha1($code)) {
+            $result = $entry['result'];
+        } else {
+            $tests = array_values(array_filter($this->get_tests(), function($t) {
+                return ($t['visibility'] ?? 'visible') === 'visible';
+            }));
+            $result = (new runner())->evaluate($code, (string)$this->mpl->reference, $tests, $this->limits());
+            $this->remember_result($userid, $code, $result);
+        }
+        // Always the student view, also for teachers: the AI never sees more than a student.
+        $filtered = self::filter_result($result, false);
+        foreach ($filtered['tests'] as $test) {
+            if ($test['id'] !== $testid) {
+                continue;
+            }
+            if (($test['visibility'] ?? '') !== 'visible' || empty($test['detail'])) {
+                throw new moodle_exception('hintnotvisible', 'mpl');
+            }
+            if ($test['status'] === 'passed' || !empty($test['config_error'])) {
+                throw new moodle_exception('hintnotfailed', 'mpl');
+            }
+            foreach ($test['instances'] as $inst) {
+                if (!empty($inst['passed'])) {
+                    continue;
+                }
+                $messages = array_values(array_filter(array_merge($inst['messages'] ?? [],
+                    isset($inst['hint']) ? [$inst['hint']] : [])));
+                foreach (($inst['criteria'] ?? []) as $c) {
+                    if (empty($c['passed'])) {
+                        $messages[] = trim(($c['label'] ?? '') . ' ' . ($c['message'] ?? ''));
+                    }
+                }
+                $error = $inst['error'] ?? null;
+                return [[
+                    'kind' => 'test',
+                    'test' => [
+                        'name' => $test['name'],
+                        'type' => $test['type'],
+                        'input' => $inst['inputs_display'] ?? null,
+                        'expected' => $inst['expected_display'] ?? null,
+                        'actual' => $inst['actual_display'] ?? null,
+                        'messages' => $messages,
+                        'error' => $error ? trim(($error['type'] ?? '') . ': ' . ($error['message'] ?? '') . "\n" .
+                            ($error['traceback'] ?? '')) : null,
+                        'stdout' => $test['type'] !== 'io' ? ($inst['stdout'] ?? null) : null,
+                    ],
+                ], $test['name']];
+            }
+            throw new moodle_exception('hintnotfailed', 'mpl');
+        }
+        throw new moodle_exception('hintnotvisible', 'mpl');
+    }
+
+    /**
+     * Ask the AI for a hint.
+     *
+     * @param int $userid
+     * @param string $code
+     * @param string $kind "test" or "console"
+     * @param string $testid
+     * @param string $output console output (kind console)
+     * @return array hint record for the UI
+     */
+    public function request_hint(int $userid, string $code, string $kind, string $testid, string $output): array {
+        global $DB, $CFG;
+        require_once($CFG->dirroot . '/mod/mpl/lib.php');
+        $code = self::clean_code($code);
+        $state = $this->hint_state($userid);
+        if (empty($state['enabled'])) {
+            throw new moodle_exception('hintsdisabled', 'mpl');
+        }
+        if (!empty($state['blocked'])) {
+            throw new moodle_exception('hintsexhausted', 'mpl');
+        }
+
+        if ($kind === 'test') {
+            [$context, $title] = $this->test_context($userid, $code, $testid);
+        } else {
+            $output = trim(\core_text::substr($output, -6000));
+            if ($output === '') {
+                throw new moodle_exception('hintnotfailed', 'mpl');
+            }
+            $context = ['kind' => 'console', 'output' => $output];
+            $title = '';
+            if (preg_match('/^(\w+(Error|Exception|Interrupt)|Timeout)\b/m', $output, $m)) {
+                $title = $m[1];
+            }
+        }
+        $last = $DB->get_field_sql('SELECT MAX(timecreated) FROM {mpl_hints} WHERE mplid = ? AND userid = ?',
+            [$this->mpl->id, $userid]);
+        if ($last && time() - $last < 10) {
+            throw new moodle_exception('hinttoofast', 'mpl');
+        }
+        $previous = array_values($DB->get_fieldset_select('mpl_hints', 'hint', 'mplid = ? AND userid = ?',
+            [$this->mpl->id, $userid]));
+
+        $response = (new runner())->request('POST', '/v1/hint', [
+            'task' => trim(html_to_text(format_text($this->mpl->intro, $this->mpl->introformat,
+                ['context' => $this->context]), 0, false)),
+            'code' => $code,
+            'reference' => (string)$this->mpl->reference,
+            'context' => $context,
+            'previous' => $previous,
+            'lang' => strpos(current_language(), 'de') === 0 ? 'de' : 'en',
+        ], 90);
+
+        // Re-check the price after the (slow) call to avoid paying twice in parallel requests.
+        $state = $this->hint_state($userid);
+        if (!empty($state['blocked'])) {
+            throw new moodle_exception('hintsexhausted', 'mpl');
+        }
+        $record = (object)[
+            'mplid' => $this->mpl->id,
+            'userid' => $userid,
+            'kind' => $kind === 'test' ? 'test' : 'console',
+            'title' => \core_text::substr($title, 0, 250),
+            'code' => $code,
+            'context' => json_encode($context, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE),
+            'hint' => (string)$response['text'],
+            'followups' => json_encode([]),
+            'cost' => (float)$state['nextcost'],
+            'timecreated' => time(),
+        ];
+        $record->id = $DB->insert_record('mpl_hints', $record);
+        if ($record->cost > 0) {
+            mpl_update_grades($this->mpl, $userid);
+        }
+        return ['hint' => self::export_hint($record), 'ai' => $this->hint_state($userid)];
+    }
+
+    /**
+     * Follow-up question to a hint (free, limited).
+     *
+     * @param int $userid
+     * @param int $hintid
+     * @param string $question
+     * @return array
+     */
+    public function hint_followup(int $userid, int $hintid, string $question): array {
+        global $DB;
+        $record = $DB->get_record('mpl_hints', ['id' => $hintid, 'mplid' => $this->mpl->id, 'userid' => $userid],
+            '*', MUST_EXIST);
+        $followups = json_decode((string)$record->followups, true) ?: [];
+        if (count($followups) >= self::MAX_FOLLOWUPS) {
+            throw new moodle_exception('followupsexhausted', 'mpl');
+        }
+        $question = trim(\core_text::substr(clean_param($question, PARAM_TEXT), 0, 500));
+        if ($question === '') {
+            throw new moodle_exception('followupempty', 'mpl');
+        }
+        $thread = [(string)$record->hint];
+        foreach ($followups as $f) {
+            $thread[] = $f['q'];
+            $thread[] = $f['a'];
+        }
+        $thread[] = $question;
+        $previous = array_values($DB->get_fieldset_select('mpl_hints', 'hint', 'mplid = ? AND userid = ? AND id < ?',
+            [$this->mpl->id, $userid, $record->id]));
+        $response = (new runner())->request('POST', '/v1/hint', [
+            'task' => trim(html_to_text(format_text($this->mpl->intro, $this->mpl->introformat,
+                ['context' => $this->context]), 0, false)),
+            'code' => (string)$record->code,
+            'reference' => (string)$this->mpl->reference,
+            'context' => json_decode((string)$record->context, true) ?: [],
+            'previous' => $previous,
+            'thread' => $thread,
+            'lang' => strpos(current_language(), 'de') === 0 ? 'de' : 'en',
+        ], 90);
+        $followups[] = ['q' => $question, 'a' => (string)$response['text'], 'time' => time()];
+        $DB->set_field('mpl_hints', 'followups', json_encode($followups, JSON_UNESCAPED_UNICODE), ['id' => $record->id]);
+        $record->followups = json_encode($followups);
+        return ['hint' => self::export_hint($record), 'ai' => $this->hint_state($userid)];
+    }
+
+    /**
+     * All hints of a user.
+     *
+     * @param int $userid
+     * @return array
+     */
+    public function get_hints(int $userid): array {
+        global $DB;
+        $records = $DB->get_records('mpl_hints', ['mplid' => $this->mpl->id, 'userid' => $userid], 'timecreated DESC');
+        return array_values(array_map([self::class, 'export_hint'], $records));
+    }
+
+    /**
+     * Hint record for the UI.
+     *
+     * @param \stdClass $record
+     * @return array
+     */
+    public static function export_hint(\stdClass $record): array {
+        return [
+            'id' => (int)$record->id,
+            'kind' => $record->kind,
+            'title' => (string)$record->title,
+            'hint' => (string)$record->hint,
+            'followups' => json_decode((string)$record->followups, true) ?: [],
+            'cost' => (float)$record->cost,
+            'time' => userdate($record->timecreated, get_string('strftimedatetimeshort', 'langconfig')),
+        ];
     }
 }

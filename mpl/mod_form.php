@@ -106,6 +106,25 @@ class mod_mpl_mod_form extends moodleform_mod {
         $mform->setDefault('memory', (int)(get_config('mod_mpl', 'defaultmemory') ?: 512));
         $mform->addHelpButton('memory', 'memory', 'mpl');
 
+        // AI hints.
+        $mform->addElement('header', 'aiheader', get_string('aiheader', 'mpl'));
+        $mform->addElement('static', 'aiintro', '', get_string('aiintro', 'mpl'));
+        $mform->addElement('advcheckbox', 'aihints', get_string('aihints', 'mpl'));
+        $mform->addHelpButton('aihints', 'aihints', 'mpl');
+        $mform->addElement('text', 'aifree', get_string('aifree', 'mpl'), ['size' => 4]);
+        $mform->setType('aifree', PARAM_INT);
+        $mform->setDefault('aifree', 1);
+        $mform->hideIf('aifree', 'aihints');
+        $mform->addElement('text', 'aicost', get_string('aicost', 'mpl'), ['size' => 4]);
+        $mform->setType('aicost', PARAM_FLOAT);
+        $mform->setDefault('aicost', 5);
+        $mform->hideIf('aicost', 'aihints');
+        $mform->addElement('text', 'aimax', get_string('aimax', 'mpl'), ['size' => 4]);
+        $mform->setType('aimax', PARAM_FLOAT);
+        $mform->setDefault('aimax', 35);
+        $mform->addHelpButton('aimax', 'aimax', 'mpl');
+        $mform->hideIf('aimax', 'aihints');
+
         $this->standard_grading_coursemodule_elements();
         $this->standard_coursemodule_elements();
         $this->add_action_buttons();
@@ -157,6 +176,15 @@ class mod_mpl_mod_form extends moodleform_mod {
         }
         if ((int)$data['memory'] < 64 || (int)$data['memory'] > 4096) {
             $errors['memory'] = get_string('memoryrange', 'mpl');
+        }
+        if ((int)$data['aifree'] < 0 || (int)$data['aifree'] > 50) {
+            $errors['aifree'] = get_string('airange', 'mpl');
+        }
+        if ((float)$data['aicost'] < 0 || (float)$data['aicost'] > 100) {
+            $errors['aicost'] = get_string('airange', 'mpl');
+        }
+        if ((float)$data['aimax'] < 0 || (float)$data['aimax'] > 100) {
+            $errors['aimax'] = get_string('airange', 'mpl');
         }
         return $errors;
     }

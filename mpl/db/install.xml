@@ -24,6 +24,10 @@
         <FIELD NAME="timeout" TYPE="int" LENGTH="6" NOTNULL="true" DEFAULT="30" SEQUENCE="false"/>
         <FIELD NAME="memory" TYPE="int" LENGTH="6" NOTNULL="true" DEFAULT="512" SEQUENCE="false"/>
         <FIELD NAME="grade" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="100" SEQUENCE="false"/>
+        <FIELD NAME="aihints" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="AI hints enabled"/>
+        <FIELD NAME="aifree" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="1" SEQUENCE="false" COMMENT="Free hints"/>
+        <FIELD NAME="aicost" TYPE="number" LENGTH="6" NOTNULL="true" DEFAULT="5" SEQUENCE="false" DECIMALS="2" COMMENT="Percent per paid hint"/>
+        <FIELD NAME="aimax" TYPE="number" LENGTH="6" NOTNULL="true" DEFAULT="35" SEQUENCE="false" DECIMALS="2" COMMENT="Max. total deduction in percent"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
       </FIELDS>
@@ -70,6 +74,29 @@
       </KEYS>
       <INDEXES>
         <INDEX NAME="mpluser" UNIQUE="true" FIELDS="mplid, userid"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="mpl_hints" COMMENT="AI hints given to students">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="mplid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="kind" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="test" SEQUENCE="false" COMMENT="test or console"/>
+        <FIELD NAME="title" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="Test name or error type"/>
+        <FIELD NAME="code" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Code at the time of the hint"/>
+        <FIELD NAME="context" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Context sent to the AI (JSON)"/>
+        <FIELD NAME="hint" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="followups" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Follow-up questions and answers (JSON)"/>
+        <FIELD NAME="cost" TYPE="number" LENGTH="6" NOTNULL="true" DEFAULT="0" SEQUENCE="false" DECIMALS="2" COMMENT="Deduction in percent"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="mplid" TYPE="foreign" FIELDS="mplid" REFTABLE="mpl" REFFIELDS="id"/>
+        <KEY NAME="userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="mpluser" UNIQUE="false" FIELDS="mplid, userid"/>
       </INDEXES>
     </TABLE>
   </TABLES>

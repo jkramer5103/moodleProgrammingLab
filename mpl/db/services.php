@@ -89,4 +89,18 @@ $functions = [
         'readonlysession' => true,
         'capabilities' => 'mod/mpl:addinstance',
     ],
+    'mod_mpl_hint' => [
+        'classname' => 'mod_mpl\\external\\hint',
+        'description' => 'AI hint about a failed visible test or a console error.',
+        'type' => 'write',
+        'ajax' => true,
+        'readonlysession' => true,
+    ],
+    'mod_mpl_hint_followup' => [
+        'classname' => 'mod_mpl\\external\\hint_followup',
+        'description' => 'Follow-up question about an AI hint.',
+        'type' => 'write',
+        'ajax' => true,
+        'readonlysession' => true,
+    ],
 ];

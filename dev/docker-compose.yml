@@ -44,8 +44,21 @@ services:
       MPL_RUNNER_SECRET: dev-secret-0123456789abcdef
       MPL_POOL_SIZE: "3"
       MPL_INSTANCE: dev
+      # KI-Hinweise: Key in dev/.env eintragen (MPL_AI_API_KEY=sk-or-...), siehe README.
+      MPL_AI_API_KEY: ${MPL_AI_API_KEY:-}
+      MPL_AI_BASE_URL: ${MPL_AI_BASE_URL:-https://openrouter.ai/api/v1}
+      MPL_AI_MODEL: ${MPL_AI_MODEL:-deepseek/deepseek-v4.1-flash}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+
+  aimock:
+    # Fake KI-API für Tests (nur mit: docker compose --profile aimock up -d)
+    image: python:3.12-slim
+    profiles: ["aimock"]
+    command: ["python", "/mock/aimock.py"]
+    volumes:
+      - ./aimock.py:/mock/aimock.py:ro
+      - ./aimock-log:/log
 
 volumes:
   dbdata:

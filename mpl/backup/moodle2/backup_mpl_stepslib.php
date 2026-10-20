@@ -36,7 +36,7 @@ class backup_mpl_activity_structure_step extends backup_activity_structure_step 
     protected function define_structure() {
         $userinfo = $this->get_setting_value('userinfo');
 
-        $mpl = new backup_nested_element('mpl', ['id'], ['name', 'intro', 'introformat', 'starter', 'reference', 'tests', 'allowrun', 'allowcheck', 'checkgraded', 'maxattempts', 'grademethod', 'duedate', 'cutoffdate', 'timeout', 'memory', 'grade', 'timecreated', 'timemodified']);
+        $mpl = new backup_nested_element('mpl', ['id'], ['name', 'intro', 'introformat', 'starter', 'reference', 'tests', 'allowrun', 'allowcheck', 'checkgraded', 'maxattempts', 'grademethod', 'duedate', 'cutoffdate', 'timeout', 'memory', 'grade', 'timecreated', 'timemodified', 'aihints', 'aifree', 'aicost', 'aimax']);
         $submissions = new backup_nested_element('submissions');
         $submission = new backup_nested_element('submission', ['id'], ['userid', 'attempt', 'code', 'score', 'maxscore',
             'fraction', 'status', 'result', 'timecreated']);
@@ -47,14 +47,21 @@ class backup_mpl_activity_structure_step extends backup_activity_structure_step 
         $submissions->add_child($submission);
         $mpl->add_child($drafts);
         $drafts->add_child($draft);
+        $hints = new backup_nested_element('hints');
+        $hint = new backup_nested_element('hint', ['id'], ['userid', 'kind', 'title', 'code', 'context', 'hint',
+            'followups', 'cost', 'timecreated']);
+        $mpl->add_child($hints);
+        $hints->add_child($hint);
 
         $mpl->set_source_table('mpl', ['id' => backup::VAR_ACTIVITYID]);
         if ($userinfo) {
             $submission->set_source_table('mpl_submissions', ['mplid' => backup::VAR_PARENTID], 'id ASC');
             $draft->set_source_table('mpl_drafts', ['mplid' => backup::VAR_PARENTID], 'id ASC');
+            $hint->set_source_table('mpl_hints', ['mplid' => backup::VAR_PARENTID], 'id ASC');
         }
         $submission->annotate_ids('user', 'userid');
         $draft->annotate_ids('user', 'userid');
+        $hint->annotate_ids('user', 'userid');
         $mpl->annotate_files('mod_mpl', 'intro', null);
 
         return $this->prepare_activity_structure($mpl);

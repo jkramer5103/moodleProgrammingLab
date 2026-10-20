@@ -39,6 +39,12 @@ class Settings:
         self.max_repeat = _int("MPL_MAX_REPEAT", 20)
         self.reference_cache = _int("MPL_REFERENCE_CACHE", 5000)
         self.max_eval_seconds = _float("MPL_MAX_EVAL_SECONDS", 300)
+        # AI hints (OpenAI-compatible API, default OpenRouter).
+        self.ai_api_key = os.environ.get("MPL_AI_API_KEY", "")
+        self.ai_base_url = os.environ.get("MPL_AI_BASE_URL", "https://openrouter.ai/api/v1")
+        self.ai_model = os.environ.get("MPL_AI_MODEL", "deepseek/deepseek-v4.1-flash")
+        self.ai_timeout = _float("MPL_AI_TIMEOUT", 45)
+        self.ai_max_tokens = _int("MPL_AI_MAX_TOKENS", 700)
 
 
 settings = Settings()

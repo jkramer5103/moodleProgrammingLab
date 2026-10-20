@@ -57,6 +57,18 @@ class provider implements
             'code' => 'privacy:metadata:drafts:code',
             'timemodified' => 'privacy:metadata:drafts:timemodified',
         ], 'privacy:metadata:drafts');
+        $collection->add_database_table('mpl_hints', [
+            'userid' => 'privacy:metadata:hints:userid',
+            'code' => 'privacy:metadata:hints:code',
+            'hint' => 'privacy:metadata:hints:hint',
+            'followups' => 'privacy:metadata:hints:followups',
+            'cost' => 'privacy:metadata:hints:cost',
+            'timecreated' => 'privacy:metadata:hints:timecreated',
+        ], 'privacy:metadata:hints');
+        $collection->add_external_location_link('ai', [
+            'code' => 'privacy:metadata:ai:code',
+            'context' => 'privacy:metadata:ai:context',
+        ], 'privacy:metadata:ai');
         $collection->add_external_location_link('runner', [
             'code' => 'privacy:metadata:runner:code',
             'owner' => 'privacy:metadata:runner:owner',
@@ -76,9 +88,10 @@ class provider implements
                   JOIN {course_modules} cm ON cm.id = ctx.instanceid AND ctx.contextlevel = :ctxlevel
                   JOIN {modules} m ON m.id = cm.module AND m.name = 'mpl'
                  WHERE EXISTS (SELECT 1 FROM {mpl_submissions} s WHERE s.mplid = cm.instance AND s.userid = :u1)
-                    OR EXISTS (SELECT 1 FROM {mpl_drafts} d WHERE d.mplid = cm.instance AND d.userid = :u2)";
+                    OR EXISTS (SELECT 1 FROM {mpl_drafts} d WHERE d.mplid = cm.instance AND d.userid = :u2)
+                    OR EXISTS (SELECT 1 FROM {mpl_hints} h WHERE h.mplid = cm.instance AND h.userid = :u3)";
         $list = new contextlist();
-        $list->add_from_sql($sql, ['ctxlevel' => CONTEXT_MODULE, 'u1' => $userid, 'u2' => $userid]);
+        $list->add_from_sql($sql, ['ctxlevel' => CONTEXT_MODULE, 'u1' => $userid, 'u2' => $userid, 'u3' => $userid]);
         return $list;
     }
 
@@ -93,7 +106,7 @@ class provider implements
             return;
         }
         $params = ['cmid' => $context->instanceid];
-        foreach (['mpl_submissions', 'mpl_drafts'] as $table) {
+        foreach (['mpl_submissions', 'mpl_drafts', 'mpl_hints'] as $table) {
             $sql = "SELECT t.userid FROM {{$table}} t
                       JOIN {course_modules} cm ON cm.instance = t.mplid
                       JOIN {modules} m ON m.id = cm.module AND m.name = 'mpl'
@@ -134,6 +147,15 @@ class provider implements
             if ($draft) {
                 $data->draft = (object)['code' => $draft->code, 'timemodified' => transform::datetime($draft->timemodified)];
             }
+            $hints = $DB->get_records('mpl_hints', ['mplid' => $cm->instance, 'userid' => $userid], 'timecreated');
+            $data->hints = array_values(array_map(function($h) {
+                return (object)[
+                    'hint' => $h->hint,
+                    'followups' => json_decode((string)$h->followups, true) ?: [],
+                    'cost' => $h->cost,
+                    'timecreated' => transform::datetime($h->timecreated),
+                ];
+            }, $hints));
             writer::with_context($context)->export_data([], $data);
         }
     }
@@ -151,6 +173,7 @@ class provider implements
         if ($cm = get_coursemodule_from_id('mpl', $context->instanceid)) {
             $DB->delete_records('mpl_submissions', ['mplid' => $cm->instance]);
             $DB->delete_records('mpl_drafts', ['mplid' => $cm->instance]);
+            $DB->delete_records('mpl_hints', ['mplid' => $cm->instance]);
         }
     }
 
@@ -166,6 +189,7 @@ class provider implements
             if ($context instanceof \context_module && ($cm = get_coursemodule_from_id('mpl', $context->instanceid))) {
                 $DB->delete_records('mpl_submissions', ['mplid' => $cm->instance, 'userid' => $userid]);
                 $DB->delete_records('mpl_drafts', ['mplid' => $cm->instance, 'userid' => $userid]);
+                $DB->delete_records('mpl_hints', ['mplid' => $cm->instance, 'userid' => $userid]);
             }
         }
     }
@@ -185,5 +209,6 @@ class provider implements
         $params['mplid'] = $cm->instance;
         $DB->delete_records_select('mpl_submissions', "mplid = :mplid AND userid $insql", $params);
         $DB->delete_records_select('mpl_drafts', "mplid = :mplid AND userid $insql", $params);
+        $DB->delete_records_select('mpl_hints', "mplid = :mplid AND userid $insql", $params);
     }
 }

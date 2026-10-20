@@ -79,6 +79,8 @@ $config = [
     'attempts' => $attempts,
     'isgrader' => $isgrader,
     'testcount' => count($manager->get_tests()),
+    'ai' => $canrun ? $manager->hint_state($USER->id) : ['enabled' => false],
+    'hints' => $canrun && !empty($mpl->aihints) ? $manager->get_hints($USER->id) : [],
 ];
 
 echo $OUTPUT->header();
@@ -109,6 +111,10 @@ if ($cansubmit) {
     if ($mpl->cutoffdate) {
         $info[] = get_string('cutoffinfo', 'mpl', userdate($mpl->cutoffdate));
     }
+}
+if (!empty($mpl->aihints) && $canrun && !$isgrader) {
+    $info[] = get_string('aistatusline', 'mpl', (object)['free' => (int)$mpl->aifree,
+        'cost' => format_float($mpl->aicost, 0), 'max' => format_float($mpl->aimax, 0)]);
 }
 if ($info) {
     echo html_writer::div(implode(' · ', $info), 'mpl-statusline text-muted small mb-2');

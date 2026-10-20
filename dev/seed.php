@@ -64,7 +64,7 @@ foreach ($activities as $a) {
         'introeditor' => ['text' => $a['intro'], 'format' => FORMAT_HTML, 'itemid' => 0],
         'starter' => '', 'reference' => '', 'allowrun' => 1, 'allowcheck' => 1, 'checkgraded' => 0,
         'maxattempts' => 0, 'grademethod' => 0, 'duedate' => 0, 'cutoffdate' => 0, 'timeout' => 30,
-        'memory' => 512, 'grade' => 10, 'cmidnumber' => '',
+        'memory' => 512, 'grade' => 10, 'cmidnumber' => '', 'aihints' => 1, 'aifree' => 1, 'aicost' => 5, 'aimax' => 35,
     ], $a);
     $data->tests = json_encode(['version' => 1, 'tests' => $a['tests']]);
     unset($data->intro);

@@ -54,7 +54,7 @@ curl http://localhost:8000/v1/health     # → {"ok":true,"warm":4,"workers":…
 ### 2. Plugin installieren
 
 ```bash
-tooling/package.sh          # → dist/mod_mpl-1.1.0.zip   (oder: Ordner mpl/ nach <moodle>/mod/mpl kopieren)
+tooling/package.sh          # → dist/mod_mpl-1.2.0.zip   (oder: Ordner mpl/ nach <moodle>/mod/mpl kopieren)
 ```
 
 In Moodle: *Website-Administration › Plugins › Plugin installieren* → ZIP hochladen → Upgrade durchführen.
@@ -124,6 +124,21 @@ Unter dem Builder: **„Musterlösung testen“** (sollte volle Punktzahl geben)
 
 **Abgaben**: Reiter „Abgaben“ in der Aktivität – Übersicht aller Schüler/innen, jede Abgabe mit Code und allen Testdetails. Noten landen automatisch in der Bewertungsübersicht und können dort manuell überschrieben werden.
 
+## KI-Hinweise (optional)
+
+Bei einem **fehlgeschlagenen, sichtbaren Test** („Hilf mir“) oder einem **Fehler in der Konsole** („Fehler erklären“) können Schüler/innen einen KI-Hinweis anfordern:
+
+* ein Denkanstoß in 3–6 Sätzen, **ohne Lösungscode**, auf Deutsch, per du; bis zu 3 Rückfragen pro Hinweis sind gratis
+* keine Stufen: jeder Hinweis ist gleich konkret, die KI kennt ihre früheren Hinweise, wiederholt sich nicht und wird nicht konkreter
+* **Kosten** (pro Aktivität einstellbar): 1. Hinweis gratis, jeder weitere −5 % der Note dieser Aufgabe, maximal −35 % – dann gibt es keine Hinweise mehr. Vor jedem kostenpflichtigen Hinweis wird bestätigt. Der Abzug gilt für alle Versuche und steht im Gradebook.
+* bei „nur Name“- oder versteckten Tests gibt es **keine** KI-Hilfe; die KI bekommt nie mehr zu sehen als die Schüler/innen (plus Musterlösung, mit der Anweisung, sie nicht zu verraten)
+* Lehrkräfte sehen alle Hinweise (Reiter „Abgaben“ → Spalte „KI-Hinweise“); das wird den Schüler/innen angezeigt. Für Lehrkräfte sind Hinweise kostenlos.
+* pro Aktivität einschaltbar (Standard: aus – für Klassenarbeiten aus lassen)
+
+**Einrichtung**: OpenRouter-Key in `runner/.env` als `MPL_AI_API_KEY` eintragen, `docker compose up -d`. Standardmodell: `MPL_AI_MODEL` (jede OpenAI-kompatible API über `MPL_AI_BASE_URL`). Der Runner verlangt bei OpenRouter nur Anbieter, die die Daten **nicht zum Training** verwenden (`data_collection: deny`), und schickt keine Namen oder Nutzerkennungen. Nur der Runner braucht dafür Internetzugang, die Sandboxes nie. **Vor dem Einsatz das OK der Schule/des Datenschutzbeauftragten einholen** – der Code verlässt dabei das Schulnetz.
+
+Modelle vergleichen: `MPL_AI_API_KEY=… python3 runner/tests/hint_eval.py modell1 modell2` (15 typische Schülerfehler inkl. Jailbreak-Versuch; markiert Codeblöcke und Fragmente der Musterlösung).
+
 ## Für Schüler/innen
 
 * Editor mit Syntaxhervorhebung, Auto-Einrückung und automatischem Speichern
@@ -180,6 +195,9 @@ Tests:
 MPL_RUNNER_URL=http://localhost:8000 MPL_RUNNER_SECRET=… python3 runner/tests/test_api.py
 # Moodle-Webservices (Rechte, Sichtbarkeit, Noten, Konsole)
 cd dev && docker compose exec -u www-data moodle php /mpl-dev/test_externals.php
+# KI-Hinweise gegen eine Fake-KI (Kosten, Deckel, Rückfragen, was an die KI geht)
+MPL_AI_API_KEY=mock MPL_AI_BASE_URL=http://aimock:9000/v1 docker compose --profile aimock up -d
+docker compose exec -u www-data moodle php /mpl-dev/test_ai.php
 # Browser-E2E (headless Chromium), Screenshots in dev/e2e/shots/
 dev/e2e/run.sh
 ```

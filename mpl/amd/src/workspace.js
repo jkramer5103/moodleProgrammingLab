@@ -25,7 +25,7 @@ import Ajax from 'core/ajax';
 import {exception as displayException, saveCancelPromise} from 'core/notification';
 import {createEditor} from 'mod_mpl/codemirror';
 import {h, clear, loadStrings, fmt} from 'mod_mpl/dom';
-import {render as renderResult} from 'mod_mpl/results';
+import {render as renderResult, hintText} from 'mod_mpl/results';
 
 const KEYS = [
     'ws_run', 'ws_stop', 'ws_check', 'ws_submit', 'ws_reset', 'ws_resetconfirm', 'ws_console', 'ws_results',
@@ -33,7 +33,10 @@ const KEYS = [
     'ws_inputplaceholder', 'ws_consoleempty', 'ws_submitconfirm', 'ws_submitconfirmlimited', 'ws_submittitle',
     'ws_checking', 'ws_submitting', 'ws_noresults', 'ws_noattempts', 'ws_loadcode', 'ws_loadcodeconfirm',
     'ws_viewresult', 'ws_clear', 'ws_starting', 'ws_checkgradedhint', 'ws_shortcuts', 'ws_send',
-    'ws_attemptrow', 'ws_connectionlost',
+    'ws_attemptrow', 'ws_connectionlost', 'ai_tab', 'ai_help', 'ai_explain', 'ai_free', 'ai_cost', 'ai_confirmtitle',
+    'ai_confirm', 'ai_blocked', 'ai_loading', 'ai_followup_placeholder', 'ai_followup_send', 'ai_followups_left',
+    'ai_status', 'ai_teachernote', 'ai_none', 'ai_kind_test', 'ai_kind_console', 'ai_freehint', 'ai_teacherfree',
+    'ai_nextfree', 'ai_nextcost', 'ai_buy',
 ];
 
 const call = (methodname, args) => Ajax.call([{methodname, args}])[0];
@@ -79,6 +82,9 @@ class Workspace {
         this.offset = 0;
         this.busy = false;
         this.dirty = false;
+        this.ai = config.ai || {enabled: false};
+        this.hints = config.hints || [];
+        this.consoleText = '';
         this.build();
     }
 
@@ -145,6 +151,9 @@ class Workspace {
         if (c.cansubmit) {
             addTab('attempts', S.ws_attempts);
         }
+        if (this.ai.enabled) {
+            addTab('hints', S.ai_tab);
+        }
 
         // Console.
         if (c.allowrun) {
@@ -169,14 +178,20 @@ class Workspace {
                     h('button.btn.btn-sm.btn-outline-light.mpl-send', {type: 'button', onClick: () => this.sendInput()},
                         S.ws_send)]),
             ]);
+            this.explainSlot = h('span.mpl-explain-slot');
             append(this.panes.console, [
-                h('div.mpl-console-bar', null, [this.consoleState, h('span.mpl-toolbar-spacer'),
+                h('div.mpl-console-bar', null, [this.consoleState, this.explainSlot, h('span.mpl-toolbar-spacer'),
                     h('button.btn.btn-sm.btn-link', {type: 'button', onClick: () => this.clearConsole()}, S.ws_clear)]),
                 consoleEl,
             ]);
         }
         this.resultsEl = h('div.mpl-results', null, h('div.text-muted', {text: S.ws_noresults}));
         this.panes.results.appendChild(this.resultsEl);
+        if (this.ai.enabled) {
+            this.hintsEl = h('div.mpl-hints');
+            this.panes.hints.appendChild(this.hintsEl);
+            this.renderHints();
+        }
         if (c.cansubmit) {
             this.attemptsEl = h('div.mpl-attempts');
             this.panes.attempts.appendChild(this.attemptsEl);
@@ -246,9 +261,16 @@ class Workspace {
 
     clearConsole() {
         clear(this.consoleOut);
+        this.consoleText = '';
+        if (this.explainSlot) {
+            clear(this.explainSlot);
+        }
     }
 
     write(text, cls) {
+        if (cls !== 'sys') {
+            this.consoleText = (this.consoleText + text).slice(-20000);
+        }
         const last = this.consoleOut.lastChild;
         if (last && last.nodeType === 1 && last.dataset.stream === cls && last.tagName === 'SPAN') {
             last.textContent += text;
@@ -348,6 +370,16 @@ class Workspace {
             }
             this.write('\n' + text + '\n', 'sys');
             this.consoleState.textContent = text;
+            // Only real errors – not "stopped by the user".
+            const failed = (typeof exit.code === 'number' && exit.code !== 0) || /Traceback|Error:/.test(this.consoleText)
+                || /limit|Signal/i.test(exit.message || '');
+            if (failed && this.explainSlot) {
+                const output = this.consoleText + (exit.message ? '\n' + exit.message : '');
+                const btn = this.hintButton(this.S.ai_explain, () => this.askHint('console', '', output));
+                if (btn) {
+                    this.explainSlot.appendChild(btn);
+                }
+            }
         } else {
             this.consoleState.textContent = '';
         }
@@ -427,7 +459,12 @@ class Workspace {
             const res = await call(method, {cmid: this.config.cmid, code: this.editor.getValue()});
             this.status.textContent = this.S.ws_saved;
             const result = JSON.parse(res.json);
-            await renderResult(this.resultsEl, result);
+            if (result.ai) {
+                this.ai = result.ai;
+            }
+            await renderResult(this.resultsEl, result, {
+                hintButton: (test) => this.hintButton(this.S.ai_help, () => this.askHint('test', test.id, '')),
+            });
             return result;
         } catch (e) {
             clear(this.resultsEl);
@@ -490,6 +527,144 @@ class Workspace {
         } catch (e) {
             displayException(e);
         }
+    }
+
+    // ----- AI hints --------------------------------------------------------
+
+    costLabel() {
+        const ai = this.ai;
+        if (ai.teacher) {
+            return this.S.ai_teacherfree;
+        }
+        if (ai.blocked) {
+            return this.S.ai_blocked;
+        }
+        return ai.nextcost > 0 ? fmt(this.S.ai_cost, ai.nextcost) : this.S.ai_free;
+    }
+
+    hintButton(label, handler) {
+        if (!this.ai.enabled) {
+            return null;
+        }
+        const btn = h('button.btn.btn-sm.btn-outline-info.mpl-hint-btn', {type: 'button', disabled: !!this.ai.blocked,
+            onClick: (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handler();
+            }}, '💡 ' + label + ' · ' + this.costLabel());
+        btn.dataset.label = label;
+        return btn;
+    }
+
+    refreshHintButtons() {
+        this.root.querySelectorAll('.mpl-hint-btn').forEach((btn) => {
+            btn.textContent = '💡 ' + btn.dataset.label + ' · ' + this.costLabel();
+            btn.disabled = !!this.ai.blocked;
+        });
+    }
+
+    async askHint(kind, testid, output) {
+        const S = this.S;
+        if (this.ai.blocked || this.hintBusy) {
+            return;
+        }
+        if (this.ai.nextcost > 0) {
+            try {
+                await saveCancelPromise(S.ai_confirmtitle, fmt(S.ai_confirm, {cost: this.ai.nextcost,
+                    penalty: this.ai.penalty, max: this.ai.max}), S.ai_buy);
+            } catch (e) {
+                return;
+            }
+        }
+        this.hintBusy = true;
+        this.showTab('hints');
+        const loading = h('div.mpl-loading', null, [h('span.spinner-border.spinner-border-sm'), ' ', S.ai_loading]);
+        this.hintsEl.prepend(loading);
+        try {
+            const res = await call('mod_mpl_hint', {cmid: this.config.cmid, code: this.editor.getValue(), kind,
+                testid: testid || '', output: output || ''});
+            const data = JSON.parse(res.json);
+            this.ai = data.ai;
+            this.hints.unshift(data.hint);
+            this.renderHints();
+            this.refreshHintButtons();
+        } catch (e) {
+            loading.remove();
+            displayException(e);
+        } finally {
+            this.hintBusy = false;
+        }
+    }
+
+    renderHints() {
+        const S = this.S;
+        clear(this.hintsEl);
+        const ai = this.ai;
+        const status = ai.teacher ? S.ai_teacherfree : fmt(S.ai_status, {used: ai.used, penalty: ai.penalty, max: ai.max});
+        const next = ai.teacher ? '' : (ai.blocked ? S.ai_blocked : (ai.nextcost > 0 ? fmt(S.ai_nextcost, ai.nextcost)
+            : S.ai_nextfree));
+        this.hintsEl.appendChild(h('div.mpl-hint-status', null, [
+            h('div', {text: status + (next ? ' · ' + next : '')}),
+            h('div.small.text-muted', {text: S.ai_teachernote}),
+        ]));
+        if (!this.hints.length) {
+            this.hintsEl.appendChild(h('div.text-muted.mt-2', {text: S.ai_none}));
+            return;
+        }
+        this.hints.forEach((hint) => this.hintsEl.appendChild(this.hintCard(hint)));
+    }
+
+    hintCard(hint) {
+        const S = this.S;
+        const title = hint.kind === 'test' ? fmt(S.ai_kind_test, hint.title) : S.ai_kind_console +
+            (hint.title ? ' (' + hint.title + ')' : '');
+        const card = h('div.mpl-hint-card', null, [
+            h('div.mpl-hint-head', {text: '💡 ' + title + ' · ' + hint.time + ' · ' +
+                (hint.cost > 0 ? '−' + hint.cost + ' %' : S.ai_freehint)}),
+            hintText(hint.hint),
+        ]);
+        (hint.followups || []).forEach((f) => {
+            card.appendChild(h('div.mpl-hint-q', {text: f.q}));
+            card.appendChild(h('div.mpl-hint-a', null, hintText(f.a)));
+        });
+        const left = (this.ai.maxfollowups || 3) - (hint.followups || []).length;
+        if (left > 0) {
+            const input = h('input.form-control.form-control-sm', {type: 'text', maxlength: 500,
+                placeholder: S.ai_followup_placeholder});
+            const send = async() => {
+                const q = input.value.trim();
+                if (!q) {
+                    return;
+                }
+                input.disabled = true;
+                button.disabled = true;
+                card.appendChild(h('div.mpl-hint-q', {text: q}));
+                const wait = h('div.mpl-loading', null, [h('span.spinner-border.spinner-border-sm'), ' ', S.ai_loading]);
+                card.appendChild(wait);
+                try {
+                    const res = await call('mod_mpl_hint_followup', {cmid: this.config.cmid, hintid: hint.id, question: q});
+                    const data = JSON.parse(res.json);
+                    const i = this.hints.findIndex((x) => x.id === hint.id);
+                    this.hints[i] = data.hint;
+                    card.replaceWith(this.hintCard(data.hint));
+                } catch (e) {
+                    wait.remove();
+                    input.disabled = false;
+                    button.disabled = false;
+                    displayException(e);
+                }
+            };
+            const button = h('button.btn.btn-sm.btn-secondary', {type: 'button', onClick: send}, S.ai_followup_send);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    send();
+                }
+            });
+            card.appendChild(h('div.mpl-hint-followup', null, [input, button,
+                h('span.small.text-muted', {text: fmt(S.ai_followups_left, left)})]));
+        }
+        return card;
     }
 }
 

@@ -63,7 +63,7 @@ function mpl_supports($feature) {
  */
 function mpl_prepare_instance_data(stdClass $data): stdClass {
     $data->timemodified = time();
-    foreach (['allowrun', 'allowcheck', 'checkgraded'] as $flag) {
+    foreach (['allowrun', 'allowcheck', 'checkgraded', 'aihints'] as $flag) {
         $data->$flag = empty($data->$flag) ? 0 : 1;
     }
     $data->tests = \mod_mpl\manager::normalise_tests_json($data->tests ?? '');
@@ -120,6 +120,7 @@ function mpl_delete_instance($id) {
     }
     $DB->delete_records('mpl_submissions', ['mplid' => $id]);
     $DB->delete_records('mpl_drafts', ['mplid' => $id]);
+    $DB->delete_records('mpl_hints', ['mplid' => $id]);
     $DB->delete_records('mpl', ['id' => $id]);
     mpl_grade_item_delete($mpl);
     return true;
@@ -198,7 +199,22 @@ function mpl_get_user_grades($mpl, $userid = 0) {
         $g->dategraded = max($g->dategraded, $r->timecreated);
         $g->datesubmitted = max($g->datesubmitted, $r->timecreated);
     }
+    // Deduction for AI hints (percent, capped per activity).
+    $penalties = [];
+    if (!empty($mpl->aihints) || $DB->record_exists('mpl_hints', ['mplid' => $mpl->id])) {
+        $hparams = ['mplid' => $mpl->id];
+        $hwhere = 'mplid = :mplid';
+        if ($userid) {
+            $hwhere .= ' AND userid = :userid';
+            $hparams['userid'] = $userid;
+        }
+        $penalties = $DB->get_records_sql_menu("SELECT userid, SUM(cost) FROM {mpl_hints} WHERE $hwhere GROUP BY userid",
+            $hparams);
+    }
     foreach ($grades as $g) {
+        if (!empty($penalties[$g->userid])) {
+            $g->fraction *= 1 - min((float)$mpl->aimax, (float)$penalties[$g->userid]) / 100;
+        }
         if ($mpl->grade > 0) {
             $g->rawgrade = round($g->fraction * $mpl->grade, 5);
         } else if ($mpl->grade < 0) {
@@ -268,6 +284,7 @@ function mpl_reset_userdata($data) {
         foreach ($mpls as $mpl) {
             $DB->delete_records('mpl_submissions', ['mplid' => $mpl->id]);
             $DB->delete_records('mpl_drafts', ['mplid' => $mpl->id]);
+            $DB->delete_records('mpl_hints', ['mplid' => $mpl->id]);
             mpl_grade_item_update($mpl, 'reset');
         }
         $status[] = ['component' => get_string('modulenameplural', 'mpl'),

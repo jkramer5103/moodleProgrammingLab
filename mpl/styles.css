@@ -529,3 +529,70 @@
     grid-template-columns: minmax(0, 1fr);
     max-width: 30rem;
 }
+
+/* AI hints. */
+.mpl-hint-actions {
+    margin-top: .5rem;
+}
+
+.mpl-explain-slot {
+    margin-left: .5rem;
+}
+
+.mpl-hint-status {
+    padding: .5rem .7rem;
+    background: #eef6fb;
+    border-radius: 6px;
+    margin-bottom: .75rem;
+}
+
+.mpl-hint-card {
+    border: 1px solid #b8daff;
+    border-left: 4px solid #17a2b8;
+    border-radius: 6px;
+    padding: .55rem .75rem;
+    margin-bottom: .75rem;
+    background: #fff;
+}
+
+.mpl-hint-head {
+    font-size: .85rem;
+    color: #495057;
+    margin-bottom: .3rem;
+}
+
+.mpl-hint-text p {
+    margin-bottom: .4rem;
+}
+
+.mpl-hint-text code {
+    background: #f1f3f5;
+    padding: 0 .25rem;
+    border-radius: 3px;
+}
+
+.mpl-hint-q {
+    margin-top: .5rem;
+    font-weight: 600;
+}
+
+.mpl-hint-q::before {
+    content: "❓ ";
+}
+
+.mpl-hint-a {
+    padding-left: 1.4rem;
+}
+
+.mpl-hint-followup {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .4rem;
+    margin-top: .5rem;
+}
+
+.mpl-hint-followup input.form-control {
+    flex: 1 1 14rem;
+    width: auto;
+}

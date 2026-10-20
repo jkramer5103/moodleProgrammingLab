@@ -38,6 +38,7 @@ class restore_mpl_activity_structure_step extends restore_activity_structure_ste
         if ($this->get_setting_value('userinfo')) {
             $paths[] = new restore_path_element('mpl_submission', '/activity/mpl/submissions/submission');
             $paths[] = new restore_path_element('mpl_draft', '/activity/mpl/drafts/draft');
+            $paths[] = new restore_path_element('mpl_hint', '/activity/mpl/hints/hint');
         }
         return $this->prepare_activity_structure($paths);
     }
@@ -86,6 +87,19 @@ class restore_mpl_activity_structure_step extends restore_activity_structure_ste
         $data->mplid = $this->get_new_parentid('mpl');
         $data->userid = $this->get_mappingid('user', $data->userid);
         $DB->insert_record('mpl_drafts', $data);
+    }
+
+    /**
+     * AI hint.
+     *
+     * @param array $data
+     */
+    protected function process_mpl_hint($data) {
+        global $DB;
+        $data = (object)$data;
+        $data->mplid = $this->get_new_parentid('mpl');
+        $data->userid = $this->get_mappingid('user', $data->userid);
+        $DB->insert_record('mpl_hints', $data);
     }
 
     /**
