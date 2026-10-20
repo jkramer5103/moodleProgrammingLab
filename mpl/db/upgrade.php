@@ -72,5 +72,15 @@ function xmldb_mpl_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026102100, 'mpl');
     }
 
+    if ($oldversion < 2026102200) {
+        // Conversation with the task authoring AI.
+        $table = new xmldb_table('mpl');
+        $field = new xmldb_field('authorchat', XMLDB_TYPE_TEXT, null, null, null, null, null, 'aimax');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        upgrade_mod_savepoint(true, 2026102200, 'mpl');
+    }
+
     return true;
 }

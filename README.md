@@ -139,6 +139,17 @@ Bei einem **fehlgeschlagenen, sichtbaren Test** („Hilf mir“) oder einem **Fe
 
 Modelle vergleichen: `MPL_AI_API_KEY=… python3 runner/tests/hint_eval.py modell1 modell2` (15 typische Schülerfehler inkl. Jailbreak-Versuch; markiert Codeblöcke und Fragmente der Musterlösung).
 
+## Aufgaben-KI für Lehrkräfte (optional)
+
+In den Einstellungen jeder Aktivität gibt es einen **Aufgaben-Assistenten**: Die Lehrkraft beschreibt in eigenen Worten, was sie möchte (Klassenstufe, Vorwissen, Thema). Die KI füllt dann Name, Aufgabentext, Startcode, Musterlösung und Tests aus und auf Wunsch auch Einstellungen wie „keine KI-Hilfe, nur eine Abgabe“.
+
+* **Weiterschreiben**: Mit Nachrichten wie „zusätzlich den Durchschnitt ausgeben“ lässt sich die Aufgabe ändern. Von Hand geänderte Felder sieht die KI und übernimmt sie. Das funktioniert auch bei bestehenden Aufgaben.
+* **Automatisch geprüft**: Vor dem Einfüllen muss die Musterlösung die volle Punktzahl erreichen, und typische Fehllösungen (inkl. Hartcodieren) müssen durchfallen. Sonst bekommt die KI die Fehler zurück und bessert nach (bis zu `MPL_AI_AUTHOR_REPAIRS` Runden).
+* Gespeichert wird erst mit dem Formular. Der Chatverlauf bleibt pro Aktivität erhalten.
+* Läuft als Hintergrund-Job mit Fortschrittsanzeige, typische Dauer 30–120 s, Kosten etwa 0,1 Cent pro Aufgabe.
+* Modell: `MPL_AI_AUTHOR_MODEL` (Standard `z-ai/glm-5.3-flash`, mit Reasoning `MPL_AI_AUTHOR_REASONING=medium`). Für Schülerhinweise bleibt `MPL_AI_MODEL` zuständig.
+* Auf den Lehrkraft-Seiten steht ein Support-Hinweis (Website-Administration → Plugins → MPL → „Support-Adresse“, Standard `info@jkramertech.com`).
+
 ## Für Schüler/innen
 
 * Editor mit Syntaxhervorhebung, Auto-Einrückung und automatischem Speichern

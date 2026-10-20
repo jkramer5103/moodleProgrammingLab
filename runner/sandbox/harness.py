@@ -52,6 +52,10 @@ try:
     from matplotlib.patches import Wedge
     import numpy  # noqa: F401
     HAVE_MPL = True
+    try:
+        import pandas  # noqa: F401  (pre-imported so that pandas tasks start fast)
+    except Exception:
+        pass
 except Exception:  # pragma: no cover - image always has matplotlib
     HAVE_MPL = False
 

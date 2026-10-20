@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Body, Depends, FastAPI, Header, HTTPException
 
-from . import ai, grader
+from . import ai, author, grader
 from .config import settings
 from .sandbox import Pool, SandboxError, cleanup_stale
 from .sessions import SessionManager
@@ -54,7 +54,24 @@ async def health():
 async def info():
     return {"ok": True, "version": app.version, "max_timeout": settings.max_timeout,
             "max_memory_mb": settings.max_memory_mb, "image": settings.image,
-            "ai": ai.enabled(), "ai_model": settings.ai_model if ai.enabled() else None}
+            "ai": ai.enabled(), "ai_model": settings.ai_model if ai.enabled() else None,
+            "ai_author_model": settings.ai_author_model if ai.enabled() else None}
+
+
+@app.post("/v1/author", dependencies=[Depends(auth)])
+async def author_start(req: dict = Body(...)):
+    try:
+        return author.start(req, state["pool"])
+    except ai.AIError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
+@app.get("/v1/author/{job_id}", dependencies=[Depends(auth)])
+async def author_get(job_id: str):
+    job = author.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job nicht gefunden")
+    return job
 
 
 @app.post("/v1/hint", dependencies=[Depends(auth)])

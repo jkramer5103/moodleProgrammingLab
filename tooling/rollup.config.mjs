@@ -8,7 +8,7 @@ import terser from '@rollup/plugin-terser';
 const src = new URL('../mpl/amd/src/', import.meta.url).pathname;
 const build = new URL('../mpl/amd/build/', import.meta.url).pathname;
 
-const external = (id) => /^(core|core_[a-z]+|mod_mpl|jquery)(\/|$)/.test(id);
+const external = (id) => /^(core|core_[a-z]+|mod_mpl|editor_tiny|jquery)(\/|$)/.test(id);
 
 export default readdirSync(src).filter((f) => f.endsWith('.js')).map((file) => ({
     input: src + file,

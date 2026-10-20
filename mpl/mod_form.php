@@ -40,6 +40,10 @@ class mod_mpl_mod_form extends moodleform_mod {
         global $PAGE;
         $mform = $this->_form;
 
+        // Task authoring assistant (rendered by JS above the form); the conversation is saved with the activity.
+        $mform->addElement('textarea', 'authorchat', '', ['class' => 'mpl-authorchat', 'hidden' => 'hidden']);
+        $mform->setType('authorchat', PARAM_RAW);
+
         $mform->addElement('header', 'general', get_string('general', 'form'));
         $mform->addElement('text', 'name', get_string('name'), ['size' => '64']);
         $mform->setType('name', PARAM_TEXT);
@@ -67,6 +71,7 @@ class mod_mpl_mod_form extends moodleform_mod {
             ['rows' => 6, 'class' => 'mpl-tests-json', 'spellcheck' => 'false']);
         $mform->setType('tests', PARAM_RAW);
         $mform->addElement('html', '<div class="mpl-testbuilder" data-region="mpl-testbuilder"></div>');
+        $mform->addElement('html', mpl_support_notice());
 
         // Workflow.
         $mform->addElement('header', 'workflowheader', get_string('workflowheader', 'mpl'));
@@ -129,7 +134,7 @@ class mod_mpl_mod_form extends moodleform_mod {
         $this->standard_coursemodule_elements();
         $this->add_action_buttons();
 
-        $PAGE->requires->js_call_amd('mod_mpl/testbuilder', 'init', [$this->context->id]);
+        $PAGE->requires->js_call_amd('mod_mpl/testbuilder', 'init', [$this->context->id, mpl_support_notice()]);
     }
 
     /**

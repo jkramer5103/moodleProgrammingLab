@@ -1,0 +1,615 @@
+[
+{
+"name": "Zahlen verdoppeln",
+"intro": "<p>Schreibe ein Programm, das eine ganze Zahl einliest und das Doppelte ausgibt.</p>",
+"starter": "zahl = int(input(\"Zahl: \"))\n# Dein Code hier\n",
+"reference": "zahl = int(input(\"Zahl: \"))\nprint(zahl * 2)\n",
+"tests": [
+{
+"id": "beispiel",
+"name": "Beispiel: 5 → 10",
+"type": "io",
+"points": 2,
+"visibility": "visible",
+"inputs": [
+{
+"kind": "fixed",
+"value": "5"
+}
+],
+"expected": {
+"source": "fixed",
+"value": "10"
+},
+"compare": {
+"mode": "contains"
+}
+},
+{
+"id": "zufall",
+"name": "Zufallszahlen",
+"type": "io",
+"points": 6,
+"visibility": "visible",
+"repeat": 5,
+"inputs": [
+{
+"kind": "int",
+"min": -1000,
+"max": 1000
+}
+],
+"expected": {
+"source": "reference"
+},
+"compare": {
+"mode": "numbers"
+}
+},
+{
+"id": "null",
+"name": "Sonderfall 0",
+"type": "io",
+"points": 2,
+"visibility": "nameonly",
+"inputs": [
+{
+"kind": "fixed",
+"value": "0"
+}
+],
+"expected": {
+"source": "reference"
+},
+"compare": {
+"mode": "numbers"
+}
+}
+]
+},
+{
+"name": "Primzahlen bis 100",
+"intro": "<p>Gib alle Primzahlen zwischen 1 und 100 aus – als Liste oder eine pro Zeile, wie du willst.</p>",
+"starter": "",
+"reference": "print([n for n in range(2, 101) if all(n % d for d in range(2, n))])\n",
+"tests": [
+{
+"id": "primes",
+"name": "Alle Primzahlen",
+"type": "io",
+"points": 6,
+"visibility": "visible",
+"expected": {
+"source": "reference"
+},
+"compare": {
+"mode": "numbers"
+}
+},
+{
+"id": "sortiert",
+"name": "Aufsteigend & ohne Doppelte",
+"type": "io",
+"points": 2,
+"visibility": "visible",
+"expected": {
+"source": "none"
+},
+"properties": [
+{
+"type": "sorted"
+},
+{
+"type": "unique"
+},
+{
+"type": "nonempty"
+}
+]
+},
+{
+"id": "nohardcode",
+"name": "Nicht hart codiert",
+"type": "code",
+"points": 2,
+"visibility": "visible",
+"required": true,
+"rules": [
+{
+"type": "uses",
+"value": "loop"
+},
+{
+"type": "max_numbers",
+"value": 10
+}
+]
+}
+]
+},
+{
+"name": "Caesar-Verschlüsselung",
+"intro": "<p>Implementiere <code>encrypt(text, shift)</code>: Jeder Kleinbuchstabe wird um <code>shift</code> Stellen im Alphabet verschoben (z → a). Andere Zeichen bleiben gleich.</p>",
+"starter": "def encrypt(text, shift):\n    # Dein Code hier\n    pass\n",
+"reference": "def encrypt(text, shift):\n    out = \"\"\n    for ch in text:\n        if 'a' <= ch <= 'z':\n            out += chr((ord(ch) - 97 + shift) % 26 + 97)\n        else:\n            out += ch\n    return out\n",
+"tests": [
+{
+"id": "abc",
+"name": "encrypt('abc', 1)",
+"type": "function",
+"function": "encrypt",
+"points": 2,
+"visibility": "visible",
+"inputs": [
+{
+"kind": "fixed",
+"value": "'abc'"
+},
+{
+"kind": "fixed",
+"value": "1"
+}
+],
+"expected": {
+"source": "fixed",
+"value": "'bcd'"
+},
+"compare": {
+"mode": "exact"
+}
+},
+{
+"id": "wrap",
+"name": "Über z hinaus",
+"type": "function",
+"function": "encrypt",
+"points": 2,
+"visibility": "visible",
+"inputs": [
+{
+"kind": "fixed",
+"value": "'xyz'"
+},
+{
+"kind": "fixed",
+"value": "3"
+}
+],
+"expected": {
+"source": "reference"
+},
+"compare": {
+"mode": "exact"
+}
+},
+{
+"id": "random",
+"name": "Zufällige Texte",
+"type": "function",
+"function": "encrypt",
+"points": 4,
+"visibility": "visible",
+"repeat": 5,
+"inputs": [
+{
+"kind": "str",
+"charset": "text",
+"min_len": 3,
+"max_len": 20
+},
+{
+"kind": "int",
+"min": 0,
+"max": 25
+}
+],
+"expected": {
+"source": "reference"
+},
+"compare": {
+"mode": "exact"
+}
+},
+{
+"id": "hidden",
+"name": "Versteckte Tests",
+"type": "function",
+"function": "encrypt",
+"points": 2,
+"visibility": "hidden",
+"repeat": 5,
+"inputs": [
+{
+"kind": "str",
+"charset": "letters",
+"min_len": 1,
+"max_len": 15
+},
+{
+"kind": "int",
+"min": 26,
+"max": 60
+}
+],
+"expected": {
+"source": "reference"
+},
+"compare": {
+"mode": "exact"
+}
+}
+]
+},
+{
+"name": "Bankkonto (Klasse)",
+"intro": "<p>Schreibe eine Klasse <code>Konto</code> mit Attribut <code>stand</code>, Methode <code>einzahlen(betrag)</code> und <code>abheben(betrag)</code>. Abheben über den Kontostand hinaus ist nicht erlaubt (dann gibt <code>abheben</code> False zurück und ändert nichts).</p>",
+"starter": "class Konto:\n    def __init__(self, stand):\n        self.stand = stand\n",
+"reference": "class Konto:\n    def __init__(self, stand):\n        self.stand = stand\n\n    def einzahlen(self, betrag):\n        self.stand += betrag\n        return self.stand\n\n    def abheben(self, betrag):\n        if betrag > self.stand:\n            return False\n        self.stand -= betrag\n        return True\n",
+"tests": [
+{
+"id": "einzahlen",
+"name": "Einzahlen",
+"type": "class",
+"class": "Konto",
+"points": 4,
+"visibility": "visible",
+"repeat": 3,
+"inputs": [
+{
+"kind": "int",
+"min": 0,
+"max": 500
+}
+],
+"calls": [
+{
+"method": "einzahlen",
+"args": [
+{
+"kind": "int",
+"min": 1,
+"max": 200
+}
+]
+}
+],
+"target": {
+"type": "attr",
+"name": "stand"
+},
+"expected": {
+"source": "reference"
+},
+"compare": {
+"mode": "exact"
+}
+},
+{
+"id": "abheben",
+"name": "Abheben mit Deckung",
+"type": "class",
+"class": "Konto",
+"points": 3,
+"visibility": "visible",
+"inputs": [
+{
+"kind": "fixed",
+"value": "100"
+}
+],
+"calls": [
+{
+"method": "abheben",
+"args": [
+{
+"kind": "fixed",
+"value": "30"
+}
+]
+},
+{
+"method": "abheben",
+"args": [
+{
+"kind": "fixed",
+"value": "500"
+}
+]
+}
+],
+"target": {
+"type": "returns"
+},
+"expected": {
+"source": "reference"
+},
+"compare": {
+"mode": "exact"
+}
+},
+{
+"id": "stand",
+"name": "Kontostand nach Überziehungsversuch",
+"type": "class",
+"class": "Konto",
+"points": 3,
+"visibility": "nameonly",
+"inputs": [
+{
+"kind": "int",
+"min": 10,
+"max": 50
+}
+],
+"repeat": 3,
+"calls": [
+{
+"method": "abheben",
+"args": [
+{
+"kind": "int",
+"min": 60,
+"max": 100
+}
+]
+}
+],
+"target": {
+"type": "attr",
+"name": "stand"
+},
+"expected": {
+"source": "reference"
+},
+"compare": {
+"mode": "exact"
+}
+}
+]
+},
+{
+"name": "Temperaturverlauf (Diagramm)",
+"intro": "<p>Stelle die Temperaturen der Woche als <strong>Liniendiagramm</strong> dar: x = Tag (1–7), y = Temperatur. Beschrifte die Achsen und gib dem Diagramm einen Titel.</p>",
+"starter": "import matplotlib.pyplot as plt\n\ntage = [1, 2, 3, 4, 5, 6, 7]\ntemperatur = [18, 20, 21, 19, 17, 22, 24]\n\n# Dein Code hier\n\nplt.show()\n",
+"reference": "import matplotlib.pyplot as plt\n\ntage = [1, 2, 3, 4, 5, 6, 7]\ntemperatur = [18, 20, 21, 19, 17, 22, 24]\nplt.plot(tage, temperatur, marker='o')\nplt.title('Temperaturverlauf')\nplt.xlabel('Tag')\nplt.ylabel('Temperatur in °C')\nplt.show()\n",
+"tests": [
+{
+"id": "plot",
+"name": "Liniendiagramm",
+"type": "plot",
+"visibility": "visible",
+"plot": {
+"tolerance": 0.01,
+"criteria": {
+"figure": {
+"enabled": true,
+"points": 1
+},
+"kind": {
+"enabled": true,
+"points": 2
+},
+"count": {
+"enabled": false,
+"points": 1
+},
+"data": {
+"enabled": true,
+"points": 3
+},
+"title": {
+"enabled": true,
+"points": 2,
+"mode": "present"
+},
+"xlabel": {
+"enabled": true,
+"points": 1,
+"mode": "present"
+},
+"ylabel": {
+"enabled": true,
+"points": 1,
+"mode": "present"
+},
+"legend": {
+"enabled": false,
+"points": 1,
+"mode": "present"
+}
+}
+}
+}
+]
+},
+{
+"name": "Klammerprüfer (KI-Hilfe)",
+"intro": "<p>Ein Code-Editor soll anzeigen, ob die Klammern <code>()</code>, <code>[]</code> und <code>{}</code> in einem Text stimmen. Alle anderen Zeichen werden ignoriert.</p><p><strong>a)</strong> <code>ausgeglichen(text)</code> gibt <code>True</code> zurück, wenn jede Klammer passend geschlossen wird und richtig verschachtelt ist – sonst <code>False</code>. Beispiele: <code>\"(a[b]{c})\"</code> → <code>True</code>, <code>\"([)]\"</code> → <code>False</code>, <code>\"\"</code> → <code>True</code>.</p><p><strong>b)</strong> <code>fehlerstelle(text)</code> gibt die Position (Index) des Fehlers zurück:</p><ul><li>Steht eine schließende Klammer da, die nicht zur zuletzt geöffneten passt (oder es ist gar keine offen), ist das die Fehlerstelle.</li><li>Sind am Ende noch Klammern offen, ist die Fehlerstelle die <em>erste</em> davon (die am weitesten links).</li><li>Ist alles in Ordnung: <code>-1</code>.</li></ul><p>Beispiele: <code>\")(\"</code> → 0, <code>\"([)]\"</code> → 2, <code>\"(()\"</code> → 0, <code>\"a{b}\"</code> → -1.</p><p><em>Tipp: Überlege, welche Datenstruktur sich merkt, was zuletzt geöffnet wurde.</em> Bei dieser Aufgabe gibt es KI-Hilfe über „Hilf mir“.</p>",
+"starter": "def ausgeglichen(text):\n    # Dein Code hier\n    pass\n\n\ndef fehlerstelle(text):\n    # Dein Code hier\n    pass\n",
+"reference": "def fehlerstelle(text):\n    paare = {')': '(', ']': '[', '}': '{'}\n    offen = []\n    for i, zeichen in enumerate(text):\n        if zeichen in '([{':\n            offen.append((zeichen, i))\n        elif zeichen in paare:\n            if not offen or offen[-1][0] != paare[zeichen]:\n                return i\n            offen.pop()\n    if offen:\n        return offen[0][1]\n    return -1\n\n\ndef ausgeglichen(text):\n    return fehlerstelle(text) == -1\n",
+"tests": [
+{
+"id": "a_bsp",
+"name": "a) Beispiele",
+"type": "function",
+"function": "ausgeglichen",
+"points": 2,
+"visibility": "visible",
+"show_expected": "always",
+"repeat": 4,
+"inputs": [
+{
+"kind": "choice",
+"options": "'(a[b]{c})', '([)]', '', '{[()()]}x'"
+}
+],
+"expected": {
+"source": "reference"
+},
+"compare": {
+"mode": "exact"
+}
+},
+{
+"id": "a_ok",
+"name": "a) Korrekt verschachtelt",
+"type": "function",
+"function": "ausgeglichen",
+"points": 2,
+"visibility": "visible",
+"show_expected": "always",
+"repeat": 4,
+"inputs": [
+{
+"kind": "choice",
+"options": "'(((())))', '[]{}()', '{a[b(c)d]e}', 'x(y)[z]{}'"
+}
+],
+"expected": {
+"source": "reference"
+},
+"compare": {
+"mode": "exact"
+}
+},
+{
+"id": "a_tricky",
+"name": "a) Gleich viele, aber falsch",
+"type": "function",
+"function": "ausgeglichen",
+"points": 2,
+"visibility": "visible",
+"show_expected": "always",
+"repeat": 4,
+"inputs": [
+{
+"kind": "choice",
+"options": "')(', '([)]', '{(})', ']][['"
+}
+],
+"expected": {
+"source": "reference"
+},
+"compare": {
+"mode": "exact"
+}
+},
+{
+"id": "a_rand",
+"name": "a) Zufällige Texte",
+"type": "function",
+"function": "ausgeglichen",
+"points": 2,
+"visibility": "visible",
+"repeat": 8,
+"inputs": [
+{
+"kind": "str",
+"charset": "custom",
+"chars": "()[]{}ab",
+"min_len": 0,
+"max_len": 12
+}
+],
+"expected": {
+"source": "reference"
+},
+"compare": {
+"mode": "exact"
+}
+},
+{
+"id": "b_bsp",
+"name": "b) Beispiele",
+"type": "function",
+"function": "fehlerstelle",
+"points": 3,
+"visibility": "visible",
+"show_expected": "always",
+"repeat": 6,
+"inputs": [
+{
+"kind": "choice",
+"options": "')(', '([)]', '(()', 'a{b}', 'x}y', '((]'"
+}
+],
+"expected": {
+"source": "reference"
+},
+"compare": {
+"mode": "exact"
+}
+},
+{
+"id": "b_open",
+"name": "b) Offene Klammern am Ende",
+"type": "function",
+"function": "fehlerstelle",
+"points": 2,
+"visibility": "visible",
+"show_expected": "always",
+"repeat": 4,
+"inputs": [
+{
+"kind": "choice",
+"options": "'ab(c[d', '{}((', 'x{y(z)', '[[]'"
+}
+],
+"expected": {
+"source": "reference"
+},
+"compare": {
+"mode": "exact"
+}
+},
+{
+"id": "b_rand",
+"name": "b) Zufällige Texte",
+"type": "function",
+"function": "fehlerstelle",
+"points": 4,
+"visibility": "visible",
+"repeat": 10,
+"inputs": [
+{
+"kind": "str",
+"charset": "custom",
+"chars": "()[]{}ab",
+"min_len": 1,
+"max_len": 14
+}
+],
+"expected": {
+"source": "reference"
+},
+"compare": {
+"mode": "exact"
+}
+},
+{
+"id": "versteckt",
+"name": "Weitere Fälle",
+"type": "function",
+"function": "fehlerstelle",
+"points": 2,
+"visibility": "hidden",
+"repeat": 6,
+"inputs": [
+{
+"kind": "str",
+"charset": "custom",
+"chars": "(()[]{}{x",
+"min_len": 10,
+"max_len": 30
+}
+],
+"expected": {
+"source": "reference"
+},
+"compare": {
+"mode": "exact"
+}
+}
+]
+}
+]

@@ -29,6 +29,8 @@ import {exception as displayException} from 'core/notification';
 import {fromTextarea, createEditor} from 'mod_mpl/codemirror';
 import {h, clear, loadStrings, fmt, num} from 'mod_mpl/dom';
 import {render as renderResult} from 'mod_mpl/results';
+import {init as initAuthor} from 'mod_mpl/author';
+import {getInstanceForElementId} from 'editor_tiny/editor';
 
 const KEYS = [
     'tb_addtest', 'tb_name', 'tb_type', 'tb_points', 'tb_visibility', 'tb_moveup', 'tb_movedown', 'tb_duplicate',
@@ -293,9 +295,27 @@ class Builder {
                 f.push(h('span.small', {text: S.tb_length}), this.number(spec, 'min_len', {min: 0, step: 1}),
                     h('span.small', {text: '–'}), this.number(spec, 'max_len', {min: 0, step: 1}));
                 break;
-            case 'choice':
-                f.push(this.text(spec, 'options', {placeholder: S.tb_options, class: 'mpl-tb-mono mpl-tb-grow'}));
+            case 'choice': {
+                // Options: comma separated text, or a JSON array (needed when options contain commas, e.g. lists).
+                const shown = Array.isArray(spec.options) ? JSON.stringify(spec.options) : (spec.options || '');
+                f.push(h('input.form-control.form-control-sm.mpl-tb-mono.mpl-tb-grow', {type: 'text', value: shown,
+                    placeholder: S.tb_options, onInput: (e) => {
+                        const v = e.target.value;
+                        spec.options = v;
+                        if (v.trim().startsWith('[')) {
+                            try {
+                                const arr = JSON.parse(v);
+                                if (Array.isArray(arr)) {
+                                    spec.options = arr.map(String);
+                                }
+                            } catch (err) {
+                                // Not (yet) valid JSON: keep the text.
+                            }
+                        }
+                        this.save();
+                    }}));
                 break;
+            }
             case 'list': {
                 f.push(h('span.small', {text: S.tb_length}), this.number(spec, 'min_len', {min: 0, step: 1}),
                     h('span.small', {text: '–'}), this.number(spec, 'max_len', {min: 0, step: 1}));
@@ -682,11 +702,89 @@ const validationPanel = (root, contextid, S, getReference) => {
 const append = (el, children) => children.forEach((c) => c && el.appendChild(c));
 
 /**
+ * Read and write the task fields of the form (used by the authoring assistant).
+ *
+ * @param {HTMLFormElement} form
+ * @param {Object} editors CodeMirror editors (starter, reference)
+ * @param {Builder} builder
+ * @returns {Object}
+ */
+const formApi = (form, editors, builder) => {
+    const intro = () => {
+        try {
+            return getInstanceForElementId('id_introeditor');
+        } catch (e) {
+            return null;
+        }
+    };
+    const field = (name) => form.querySelector('[name="' + name + '"]');
+    return {
+        getState: () => {
+            const tiny = intro();
+            const introArea = field('introeditor[text]');
+            return {
+                name: field('name') ? field('name').value : '',
+                intro: tiny ? tiny.getContent() : (introArea ? introArea.value : ''),
+                starter: editors.starter ? editors.starter.getValue() : '',
+                reference: editors.reference ? editors.reference.getValue() : '',
+                tests: JSON.parse(JSON.stringify(builder.tests)),
+                settings: Object.fromEntries(['allowrun', 'allowcheck', 'checkgraded', 'aihints', 'maxattempts', 'grademethod',
+                    'timeout', 'memory', 'aifree', 'aicost', 'aimax'].map((key) => {
+                    const box = form.querySelector('input[type="checkbox"][name="' + key + '"]');
+                    const el = box || field(key);
+                    return [key, el ? (box ? box.checked : el.value) : null];
+                })),
+            };
+        },
+        applyState: (task) => {
+            if (field('name') && task.name !== undefined) {
+                field('name').value = task.name;
+            }
+            if (task.intro !== undefined) {
+                const tiny = intro();
+                if (tiny) {
+                    tiny.setContent(task.intro);
+                    tiny.save();
+                }
+                const introArea = field('introeditor[text]');
+                if (introArea) {
+                    introArea.value = task.intro;
+                }
+            }
+            if (editors.starter && task.starter !== undefined) {
+                editors.starter.setValue(task.starter);
+            }
+            if (editors.reference && task.reference !== undefined) {
+                editors.reference.setValue(task.reference);
+            }
+            Object.entries(task.settings || {}).forEach(([key, value]) => {
+                const el = form.querySelector('input[type="checkbox"][name="' + key + '"]') || field(key);
+                if (!el) {
+                    return;
+                }
+                if (el.type === 'checkbox') {
+                    el.checked = !!value;
+                } else {
+                    el.value = String(value);
+                }
+                el.dispatchEvent(new Event('change', {bubbles: true}));
+            });
+            if (Array.isArray(task.tests)) {
+                builder.tests = JSON.parse(JSON.stringify(task.tests));
+                builder.open = new Set(builder.tests.length <= 3 ? builder.tests.map((t) => t.id) : []);
+                builder.render();
+            }
+        },
+    };
+};
+
+/**
  * Initialise the builder on the settings form.
  *
  * @param {Number} contextid
+ * @param {String} supportHtml support notice (HTML, built by the server)
  */
-export const init = async(contextid) => {
+export const init = async(contextid, supportHtml = '') => {
     const root = document.querySelector('[data-region="mpl-testbuilder"]');
     const textarea = document.querySelector('textarea[name="tests"]');
     if (!root || !textarea) {
@@ -722,4 +820,7 @@ export const init = async(contextid) => {
     validationPanel(root, contextid, S, () => (editors.reference ? editors.reference.getValue()
         : document.querySelector('textarea[name="reference"]').value));
     root.appendChild(toggle);
+
+    const form = root.closest('form');
+    initAuthor(form, contextid, formApi(form, editors, builder), supportHtml);
 };

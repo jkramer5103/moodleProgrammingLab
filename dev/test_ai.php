@@ -134,5 +134,32 @@ expect_error(function() use ($cm2) {
 }, 'hintsdisabled', 'disabled activity: no hints');
 $DB->set_field('mpl', 'aihints', 1, ['id' => $m2->id]);
 
+// Task authoring assistant (teacher only).
+asuser($teacher);
+$coursectx = context_course::instance($mpl->course);
+$start = json_decode(\mod_mpl\external\author_start::execute($coursectx->id,
+    json_encode([['role' => 'teacher', 'content' => 'Funktion quadrat']]), json_encode([]))['json'], true);
+ok($start['status'] === 'running' && !empty($start['id']), 'author job started');
+$job = $start;
+for ($i = 0; $i < 60 && $job['status'] === 'running'; $i++) {
+    sleep(1);
+    $job = json_decode(\mod_mpl\external\author_poll::execute($coursectx->id, $start['id'])['json'], true);
+}
+ok($job['status'] === 'done' && $job['result']['task']['name'] === 'Mock-Aufgabe: Quadrat', 'author job done');
+ok($job['result']['validation']['reference'] == 3 && $job['result']['validation']['wrong'][0]['score'] < 3,
+    'author validation: reference full, wrong solution caught');
+ok($job['result']['task']['settings'] == ['aihints' => false, 'maxattempts' => 1, 'timeout' => 120],
+    'author settings whitelisted and clamped');
+expect_error(function() use ($coursectx) {
+    \mod_mpl\external\author_poll::execute($coursectx->id, 'fremderjob');
+}, 'sessionnotfound', 'unknown author job rejected');
+asuser($student);
+try {
+    \mod_mpl\external\author_start::execute($coursectx->id, json_encode([['role' => 'teacher', 'content' => 'x']]), '{}');
+    ok(false, 'student cannot use the authoring AI');
+} catch (Exception $e) {
+    ok($e instanceof required_capability_exception, 'student cannot use the authoring AI');
+}
+
 echo $fail ? "\n$fail FAILED\n" : "\nALL OK\n";
 exit($fail ? 1 : 0);

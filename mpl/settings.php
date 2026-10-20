@@ -35,6 +35,8 @@ if ($ADMIN->fulltree) {
         get_string('runnersecret_desc', 'mpl'), ''));
     $settings->add(new admin_setting_configcheckbox('mod_mpl/runnerverifytls', get_string('runnerverifytls', 'mpl'),
         get_string('runnerverifytls_desc', 'mpl'), 1));
+    $settings->add(new admin_setting_configtext('mod_mpl/supportemail', get_string('supportemail', 'mpl'),
+        get_string('supportemail_desc', 'mpl'), 'info@jkramertech.com', PARAM_EMAIL));
     $settings->add(new admin_setting_heading('mod_mpl/defaultsheading', get_string('defaultsheading', 'mpl'), ''));
     $settings->add(new admin_setting_configtext('mod_mpl/defaulttimeout', get_string('timeout', 'mpl'),
         get_string('timeout_help', 'mpl'), 30, PARAM_INT));

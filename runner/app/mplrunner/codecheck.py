@@ -40,6 +40,9 @@ class Analysis:
                 name = _call_name(node.func)
                 if name:
                     self.calls.add(name)
+                dotted = _dotted_name(node.func)
+                if dotted:
+                    self.calls.add(dotted)
 
     def has(self, construct):
         types = {
@@ -87,6 +90,18 @@ def _call_name(func):
     return None
 
 
+def _dotted_name(func):
+    """random.randint -> "random.randint" (also for "from random import randint" style: just the name)."""
+    parts = []
+    while isinstance(func, ast.Attribute):
+        parts.append(func.attr)
+        func = func.value
+    if isinstance(func, ast.Name):
+        parts.append(func.id)
+        return ".".join(reversed(parts))
+    return None
+
+
 def describe(rule):
     rtype = rule.get("type")
     value = str(rule.get("value", "")).strip()
@@ -115,7 +130,8 @@ def check_rule(rule, source, analysis):
         ok = analysis.has(value)
         return ok if rtype == "uses" else not ok
     if rtype in ("calls", "not_calls"):
-        ok = value in analysis.calls
+        # "random.randint" also matches "from random import randint; randint(...)".
+        ok = value in analysis.calls or value.rsplit(".", 1)[-1] in analysis.calls
         return ok if rtype == "calls" else not ok
     if rtype in ("imports", "not_imports"):
         ok = value.split(".")[0] in analysis.imports

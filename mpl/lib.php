@@ -308,3 +308,17 @@ function mpl_extend_settings_navigation(settings_navigation $settingsnav, naviga
     }
 }
 
+
+/**
+ * Support notice for teachers ("need something else? write to …").
+ *
+ * @return string HTML
+ */
+function mpl_support_notice(): string {
+    $email = trim((string)get_config('mod_mpl', 'supportemail'));
+    if ($email === '') {
+        return '';
+    }
+    $link = html_writer::link('mailto:' . $email, s($email));
+    return html_writer::div('✉️ ' . get_string('supportnotice', 'mpl', $link), 'mpl-support small text-muted');
+}

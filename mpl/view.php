@@ -95,7 +95,8 @@ if ($isgrader) {
         html_writer::link(new moodle_url('/mod/mpl/submissions.php', ['id' => $cm->id]),
             get_string('viewsubmissions', 'mpl', $count), ['class' => 'btn btn-secondary']) .
         html_writer::span(get_string('teacherhint', 'mpl'), 'text-muted ms-3 ml-3 small'),
-        'mb-3 d-flex align-items-center flex-wrap');
+        'mb-2 d-flex align-items-center flex-wrap');
+    echo html_writer::div(mpl_support_notice(), 'mb-3');
 }
 
 // Status line for students.

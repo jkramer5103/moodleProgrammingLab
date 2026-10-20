@@ -45,6 +45,12 @@ class Settings:
         self.ai_model = os.environ.get("MPL_AI_MODEL", "deepseek/deepseek-v4.1-flash")
         self.ai_timeout = _float("MPL_AI_TIMEOUT", 45)
         self.ai_max_tokens = _int("MPL_AI_MAX_TOKENS", 700)
+        # Task authoring for teachers: a stronger model, allowed to "think".
+        self.ai_author_model = os.environ.get("MPL_AI_AUTHOR_MODEL", "z-ai/glm-5.3-flash")
+        self.ai_author_reasoning = os.environ.get("MPL_AI_AUTHOR_REASONING", "medium")
+        self.ai_author_timeout = _float("MPL_AI_AUTHOR_TIMEOUT", 300)
+        self.ai_author_max_tokens = _int("MPL_AI_AUTHOR_MAX_TOKENS", 24000)
+        self.ai_author_repairs = _int("MPL_AI_AUTHOR_REPAIRS", 3)
 
 
 settings = Settings()

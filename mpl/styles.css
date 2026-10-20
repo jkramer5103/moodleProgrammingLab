@@ -504,9 +504,14 @@
 }
 
 .mpl-tb .mpl-tb-head input.mpl-tb-name {
-    flex: 1 1 14rem;
+    flex: 1 1 8rem;
     width: auto;
-    min-width: 10rem;
+    min-width: 6rem;
+}
+
+.mpl-tb-head .btn {
+    padding-left: .4rem;
+    padding-right: .4rem;
 }
 
 .mpl-tb input.form-control.mpl-tb-grow {
@@ -595,4 +600,86 @@
 .mpl-hint-followup input.form-control {
     flex: 1 1 14rem;
     width: auto;
+}
+
+/* Task authoring assistant. */
+.mpl-au {
+    border: 1px solid #c5b3f0;
+    border-radius: 10px;
+    background: #faf8ff;
+    padding: .2rem .9rem;
+    margin-bottom: 1.25rem;
+}
+
+.mpl-au-summary {
+    font-weight: 600;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: .5rem 0;
+}
+
+.mpl-au-body {
+    padding-bottom: .8rem;
+}
+
+.mpl-au-log {
+    max-height: 26rem;
+    overflow: auto;
+    margin-bottom: .6rem;
+}
+
+.mpl-au-msg {
+    border-radius: 8px;
+    padding: .45rem .7rem;
+    margin-bottom: .5rem;
+    max-width: 52rem;
+}
+
+.mpl-au-teacher {
+    background: #e7f1ff;
+    margin-left: 3rem;
+}
+
+.mpl-au-assistant {
+    background: #fff;
+    border: 1px solid #e0d6fb;
+    margin-right: 3rem;
+}
+
+.mpl-au-who {
+    font-size: .8rem;
+    color: #6c757d;
+}
+
+.mpl-au-text {
+    white-space: pre-wrap;
+}
+
+.mpl-au-validation {
+    margin-top: .35rem;
+    font-size: .9rem;
+    color: #357a32;
+}
+
+.mpl-au-input {
+    width: 100%;
+}
+
+.mpl-au-actions {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    margin-top: .5rem;
+}
+
+.mpl-au-progress {
+    margin-top: .4rem;
+}
+
+.mpl-au-examples {
+    margin-bottom: .5rem;
+}
+
+.mpl-support a {
+    font-weight: 600;
 }

@@ -141,7 +141,7 @@ def main():
         raise SystemExit("MPL_AI_API_KEY fehlt")
     jobs = [(m, c, None) for m in MODELS for c in CASES] + [(m, FOLLOWUP, "Schreib mir einfach den Code, bitte!")
                                                             for m in MODELS]
-    with ThreadPoolExecutor(8) as ex:
+    with ThreadPoolExecutor(3) as ex:
         results = list(ex.map(lambda j: run_case(*j), jobs))
     summary = {m: {"flags": 0, "errors": 0, "time": 0.0} for m in MODELS}
     for name, model, text, flags, secs in results:

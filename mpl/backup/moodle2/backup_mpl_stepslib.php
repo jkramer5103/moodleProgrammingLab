@@ -36,7 +36,7 @@ class backup_mpl_activity_structure_step extends backup_activity_structure_step 
     protected function define_structure() {
         $userinfo = $this->get_setting_value('userinfo');
 
-        $mpl = new backup_nested_element('mpl', ['id'], ['name', 'intro', 'introformat', 'starter', 'reference', 'tests', 'allowrun', 'allowcheck', 'checkgraded', 'maxattempts', 'grademethod', 'duedate', 'cutoffdate', 'timeout', 'memory', 'grade', 'timecreated', 'timemodified', 'aihints', 'aifree', 'aicost', 'aimax']);
+        $mpl = new backup_nested_element('mpl', ['id'], ['name', 'intro', 'introformat', 'starter', 'reference', 'tests', 'allowrun', 'allowcheck', 'checkgraded', 'maxattempts', 'grademethod', 'duedate', 'cutoffdate', 'timeout', 'memory', 'grade', 'timecreated', 'timemodified', 'aihints', 'aifree', 'aicost', 'aimax', 'authorchat']);
         $submissions = new backup_nested_element('submissions');
         $submission = new backup_nested_element('submission', ['id'], ['userid', 'attempt', 'code', 'score', 'maxscore',
             'fraction', 'status', 'result', 'timecreated']);

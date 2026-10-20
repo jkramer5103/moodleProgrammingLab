@@ -103,4 +103,19 @@ $functions = [
         'ajax' => true,
         'readonlysession' => true,
     ],
+    'mod_mpl_author_start' => [
+        'classname' => 'mod_mpl\\external\\author_start',
+        'description' => 'Teacher: start the task authoring AI.',
+        'type' => 'write',
+        'ajax' => true,
+        'capabilities' => 'mod/mpl:addinstance',
+    ],
+    'mod_mpl_author_poll' => [
+        'classname' => 'mod_mpl\\external\\author_poll',
+        'description' => 'Teacher: status of a task authoring job.',
+        'type' => 'read',
+        'ajax' => true,
+        'readonlysession' => true,
+        'capabilities' => 'mod/mpl:addinstance',
+    ],
 ];

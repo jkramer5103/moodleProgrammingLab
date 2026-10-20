@@ -178,6 +178,28 @@ class runner {
     }
 
     /**
+     * Start a task authoring job (teacher assistant).
+     *
+     * @param array $messages conversation [{role: teacher|assistant, content}]
+     * @param array $state current form state
+     * @param string $lang
+     * @return array job view
+     */
+    public function author_start(array $messages, array $state, string $lang): array {
+        return $this->request('POST', '/v1/author', ['messages' => $messages, 'state' => $state, 'lang' => $lang], 30);
+    }
+
+    /**
+     * Status of a task authoring job.
+     *
+     * @param string $jobid
+     * @return array job view
+     */
+    public function author_get(string $jobid): array {
+        return $this->request('GET', '/v1/author/' . rawurlencode($jobid), null, 30);
+    }
+
+    /**
      * Connection test (admin settings page).
      *
      * @return array

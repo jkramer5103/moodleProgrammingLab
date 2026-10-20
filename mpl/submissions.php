@@ -107,4 +107,5 @@ echo html_writer::div(get_string('submissionsummary', 'mpl', (object)['submitted
 echo html_writer::div(html_writer::link(new moodle_url('/grade/report/grader/index.php', ['id' => $manager->course->id]),
     get_string('overridehint', 'mpl')), 'small text-muted mb-3');
 echo html_writer::table($table);
+echo mpl_support_notice();
 echo $OUTPUT->footer();
