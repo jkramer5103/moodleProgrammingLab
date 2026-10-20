@@ -11,6 +11,11 @@ $CFG->dbpass    = 'moodle';
 $CFG->prefix    = 'mdl_';
 $CFG->dboptions = ['dbpersist' => 0, 'dbport' => '', 'dbsocket' => ''];
 $CFG->wwwroot   = getenv('MPL_WWWROOT') ?: 'http://localhost:8080';
+// Public demo via Cloudflare quick tunnel (https://….trycloudflare.com): serve under the tunnel's host.
+if (!empty($_SERVER['HTTP_HOST']) && str_ends_with($_SERVER['HTTP_HOST'], '.trycloudflare.com')) {
+    $CFG->wwwroot = 'https://' . $_SERVER['HTTP_HOST'];
+    $CFG->sslproxy = true;
+}
 $CFG->dataroot  = '/var/www/moodledata';
 $CFG->admin     = 'admin';
 $CFG->directorypermissions = 02777;

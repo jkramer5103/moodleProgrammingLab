@@ -49,7 +49,7 @@ export const strings = () => {
 };
 
 /**
- * Minimal, safe markdown for AI hints: paragraphs, `code`, **bold**.
+ * Minimal, safe markdown for AI hints: paragraphs, `code`, **bold**, *italic*.
  *
  * @param {String} text
  * @returns {HTMLElement}
@@ -58,11 +58,13 @@ export const hintText = (text) => {
     const box = h('div.mpl-hint-text');
     String(text || '').split(/\n{2,}/).forEach((para) => {
         const p = h('p');
-        para.split(/(`[^`]+`|\*\*[^*]+\*\*)/).forEach((part) => {
+        para.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*\s](?:[^*]*[^*\s])?\*)/).forEach((part) => {
             if (/^`[^`]+`$/.test(part)) {
                 p.appendChild(h('code', {text: part.slice(1, -1)}));
             } else if (/^\*\*[^*]+\*\*$/.test(part)) {
                 p.appendChild(h('strong', {text: part.slice(2, -2)}));
+            } else if (/^\*[^*\s](?:[^*]*[^*\s])?\*$/.test(part)) {
+                p.appendChild(h('em', {text: part.slice(1, -1)}));
             } else if (part) {
                 p.appendChild(document.createTextNode(part.replace(/```[a-z]*/g, '')));
             }
