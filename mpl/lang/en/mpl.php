@@ -102,6 +102,7 @@ $string['au_undo'] = 'Undo';
 $string['au_undone'] = 'Previous state restored.';
 $string['au_validation_ok'] = 'Reference solution: {$a->score}/{$a->max} points';
 $string['au_validation_problems'] = 'Not solved:';
+$string['au_validation_random'] = '{$a->random} of {$a->total} tests use random values';
 $string['au_validation_wrong'] = '{$a->caught} of {$a->total} typical mistakes are detected';
 $string['au_working'] = 'The AI is working … (usually 30–90 seconds)';
 $string['au_you'] = 'You';

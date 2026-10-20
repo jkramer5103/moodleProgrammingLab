@@ -90,7 +90,10 @@ Vergleicht das Diagramm der Schüler mit dem der Musterlösung (Musterlösung Pf
   z. B. ["'Anna'", "'Otto'"] oder ["[5, 5, 3]", "[1]", "[]"]; bei io roher Text, z. B. ["17", "-3"]
 - {"kind": "list", "min_len": 1, "max_len": 10, "item": {Wert ohne list}, "sorted": bool, "unique": bool, "format": "spaces"|"lines"|"count_lines"|"commas" (nur io: wie die Liste als Eingabe getippt wird)}
 - {"kind": "bool"}
-Zufallswerte werden bei jedem Prüfen neu gezogen; die Musterlösung rechnet den Sollwert aus. So kann niemand die Ergebnisse auswendig hinschreiben.
+Zufallswerte werden bei jedem Prüfen neu gezogen; Schülerlösung und Musterlösung bekommen in jedem Durchlauf DIESELBEN Werte, die
+Musterlösung rechnet den Sollwert aus. Das gilt für alle Testarten, auch "plot" (Diagramm) und "class". So kann niemand die
+Ergebnisse auswendig hinschreiben. Liest ein Programm z. B. 10 Zahlen ein, nimm 10 Einträge {"kind": "float", …} oder eine
+{"kind": "list", "min_len": 10, "max_len": 10, "format": "lines", …}.
 
 ### Optionale Bedingungen ("properties", zusätzlich zum Vergleich oder bei "expected": {"source": "none"})
 [{"type": "nonempty"}, {"type": "type", "value": "int|float|number|str|bool|list|tuple|dict|set|none"}, {"type": "sorted"}, {"type": "sorted_desc"},
@@ -125,7 +128,9 @@ Gute Aufgaben (orientiere dich an den Beispielen):
   (z. B. teuerster Artikel zuerst), oder ersetze sie durch eine falsche Lösung, die wirklich falsche Ergebnisse liefert.
 
 Ändern statt neu bauen: Wenn eine aktuelle Aufgabe mitgeschickt wird und die Lehrkraft etwas ändern möchte, behalte alles Übrige
-(auch Test-IDs) bei und ändere nur, was gewünscht ist.
+(auch Test-IDs) bei und ändere nur, was gewünscht ist. Ist ein Wunsch schon erfüllt (z. B. „Zufallswerte statt fester Werte“, obwohl
+es schon Zufallstests gibt), sag das ehrlich und konkret (welche Tests es schon tun) und ändere nichts Unnötiges. Einen sichtbaren
+festen Beispieltest, der zum Beispiel im Aufgabentext passt, behältst du, außer die Lehrkraft will ihn ausdrücklich weg.
 
 Einstellungen der Aktivität: Nur wenn die Lehrkraft etwas dazu sagt (z. B. „Klassenarbeit“, „nur eine Abgabe“, „ohne KI-Hilfe“,
 „Schüler sollen nicht ausprobieren können“), setze "settings" mit den betroffenen Feldern:
@@ -233,10 +238,25 @@ def _clean_task(task):
     return out
 
 
+RANDOM_KINDS = {"int", "float", "str", "choice", "list", "bool"}
+
+
+def _uses_random(node):
+    """True if a test draws random values somewhere (inputs, args, calls …)."""
+    if isinstance(node, dict):
+        if isinstance(node.get("kind"), str) and node["kind"] in RANDOM_KINDS:
+            return True
+        return any(_uses_random(v) for v in node.values())
+    if isinstance(node, list):
+        return any(_uses_random(v) for v in node)
+    return False
+
+
 async def _check(task, wrong_solutions, limits):
     """Run reference, starter and wrong solutions against the tests."""
     problems = []
-    report = {"reference": None, "max": None, "wrong": [], "starter": None}
+    report = {"reference": None, "max": None, "wrong": [], "starter": None,
+              "tests": len(task["tests"]), "random": sum(1 for t in task["tests"] if _uses_random(t))}
     ref = await grader.evaluate({"code": task["reference"], "reference": task["reference"], "tests": task["tests"],
                                  "limits": limits}, POOL[0])
     report["reference"], report["max"] = ref["score"], ref["max_score"]
@@ -261,6 +281,12 @@ async def _check(task, wrong_solutions, limits):
             problems.append("Die Musterlösung besteht Test „%s“ nicht: %s" % (t["name"], detail[:600]))
     if ref["max_score"] <= 0:
         problems.append("Die Tests vergeben keine Punkte")
+    takes_input = "input(" in task["reference"] or any(
+        t.get("type") in ("function", "class") or t.get("inputs") or t.get("args") for t in task["tests"])
+    if takes_input and not report["random"]:
+        problems.append("Kein Test verwendet Zufallswerte – so lassen sich die Ergebnisse hart codieren. Ergänze mindestens "
+                        "einen sichtbaren Zufallstest (repeat 3–8) mit zufälligen Eingaben/Argumenten; das geht bei jeder "
+                        "Testart, auch bei Diagrammen. Feste Beispieltests dürfen bleiben.")
     if task["starter"].strip():
         st = await grader.evaluate({"code": task["starter"], "reference": task["reference"], "tests": task["tests"],
                                     "limits": limits}, POOL[0])

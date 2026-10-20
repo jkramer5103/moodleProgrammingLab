@@ -31,7 +31,7 @@ import {h, clear, loadStrings, fmt, num} from 'mod_mpl/dom';
 const KEYS = [
     'au_title', 'au_intro', 'au_placeholder_new', 'au_placeholder_change', 'au_create', 'au_change', 'au_working',
     'au_undo', 'au_undone', 'au_examples', 'au_example1', 'au_example2', 'au_example3', 'au_example4',
-    'au_validation_ok', 'au_validation_wrong', 'au_validation_problems', 'au_check', 'au_you', 'au_ai',
+    'au_validation_ok', 'au_validation_wrong', 'au_validation_random', 'au_validation_problems', 'au_check', 'au_you', 'au_ai',
     'au_applied', 'au_error', 'au_collapse', 'au_expand', 'au_cost',
 ];
 
@@ -93,6 +93,9 @@ export const init = async(form, contextid, api, supportHtml) => {
         const parts = [];
         if (v.reference !== null && v.max !== null) {
             parts.push(fmt(S.au_validation_ok, {score: num(v.reference), max: num(v.max)}));
+        }
+        if (v.tests) {
+            parts.push(fmt(S.au_validation_random, {random: v.random || 0, total: v.tests}));
         }
         const caught = (v.wrong || []).filter((w) => w.score < w.max).length;
         if ((v.wrong || []).length) {

@@ -102,6 +102,7 @@ $string['au_undo'] = 'Rückgängig';
 $string['au_undone'] = 'Vorheriger Stand wiederhergestellt.';
 $string['au_validation_ok'] = 'Musterlösung: {$a->score}/{$a->max} Punkte';
 $string['au_validation_problems'] = 'Nicht gelöst:';
+$string['au_validation_random'] = '{$a->random} von {$a->total} Tests mit Zufallswerten';
 $string['au_validation_wrong'] = '{$a->caught} von {$a->total} typischen Fehlern werden erkannt';
 $string['au_working'] = 'Die KI arbeitet … (meist 30–90 Sekunden)';
 $string['au_you'] = 'Du';
