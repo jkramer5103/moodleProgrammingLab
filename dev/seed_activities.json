@@ -1,92 +1,568 @@
 [
-  {
-    "name": "1 · Zahlen verdoppeln",
-    "intro": "<p>Schreibe ein Programm, das eine ganze Zahl einliest und das Doppelte ausgibt.</p>",
-    "starter": "zahl = int(input(\"Zahl: \"))\n# Dein Code hier\n",
-    "reference": "zahl = int(input(\"Zahl: \"))\nprint(zahl * 2)\n",
-    "tests": [
-      {"id": "beispiel", "name": "Beispiel: 5 → 10", "type": "io", "points": 2, "visibility": "visible",
-       "inputs": [{"kind": "fixed", "value": "5"}], "expected": {"source": "fixed", "value": "10"},
-       "compare": {"mode": "contains"}},
-      {"id": "zufall", "name": "Zufallszahlen", "type": "io", "points": 6, "visibility": "visible", "repeat": 5,
-       "inputs": [{"kind": "int", "min": -1000, "max": 1000}], "expected": {"source": "reference"},
-       "compare": {"mode": "numbers"}},
-      {"id": "null", "name": "Sonderfall 0", "type": "io", "points": 2, "visibility": "nameonly",
-       "inputs": [{"kind": "fixed", "value": "0"}], "expected": {"source": "reference"}, "compare": {"mode": "numbers"}}
+ {
+  "name": "1 · Zahlen verdoppeln",
+  "intro": "<p>Schreibe ein Programm, das eine ganze Zahl einliest und das Doppelte ausgibt.</p>",
+  "starter": "zahl = int(input(\"Zahl: \"))\n# Dein Code hier\n",
+  "reference": "zahl = int(input(\"Zahl: \"))\nprint(zahl * 2)\n",
+  "tests": [
+   {
+    "id": "beispiel",
+    "name": "Beispiel: 5 → 10",
+    "type": "io",
+    "points": 2,
+    "visibility": "visible",
+    "inputs": [
+     {
+      "kind": "fixed",
+      "value": "5"
+     }
+    ],
+    "expected": {
+     "source": "fixed",
+     "value": "10"
+    },
+    "compare": {
+     "mode": "contains"
+    }
+   },
+   {
+    "id": "zufall",
+    "name": "Zufallszahlen",
+    "type": "io",
+    "points": 6,
+    "visibility": "visible",
+    "repeat": 5,
+    "inputs": [
+     {
+      "kind": "int",
+      "min": -1000,
+      "max": 1000
+     }
+    ],
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "numbers"
+    }
+   },
+   {
+    "id": "null",
+    "name": "Sonderfall 0",
+    "type": "io",
+    "points": 2,
+    "visibility": "nameonly",
+    "inputs": [
+     {
+      "kind": "fixed",
+      "value": "0"
+     }
+    ],
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "numbers"
+    }
+   }
+  ]
+ },
+ {
+  "name": "2 · Primzahlen bis 100",
+  "intro": "<p>Gib alle Primzahlen zwischen 1 und 100 aus – als Liste oder eine pro Zeile, wie du willst.</p>",
+  "starter": "",
+  "reference": "print([n for n in range(2, 101) if all(n % d for d in range(2, n))])\n",
+  "tests": [
+   {
+    "id": "primes",
+    "name": "Alle Primzahlen",
+    "type": "io",
+    "points": 6,
+    "visibility": "visible",
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "numbers"
+    }
+   },
+   {
+    "id": "sortiert",
+    "name": "Aufsteigend & ohne Doppelte",
+    "type": "io",
+    "points": 2,
+    "visibility": "visible",
+    "expected": {
+     "source": "none"
+    },
+    "properties": [
+     {
+      "type": "sorted"
+     },
+     {
+      "type": "unique"
+     },
+     {
+      "type": "nonempty"
+     }
     ]
-  },
-  {
-    "name": "2 · Primzahlen bis 100",
-    "intro": "<p>Gib alle Primzahlen zwischen 1 und 100 aus – als Liste oder eine pro Zeile, wie du willst.</p>",
-    "starter": "",
-    "reference": "print([n for n in range(2, 101) if all(n % d for d in range(2, n))])\n",
-    "tests": [
-      {"id": "primes", "name": "Alle Primzahlen", "type": "io", "points": 6, "visibility": "visible",
-       "expected": {"source": "reference"}, "compare": {"mode": "numbers"}},
-      {"id": "sortiert", "name": "Aufsteigend & ohne Doppelte", "type": "io", "points": 2, "visibility": "visible",
-       "expected": {"source": "none"}, "properties": [{"type": "sorted"}, {"type": "unique"}, {"type": "nonempty"}]},
-      {"id": "nohardcode", "name": "Nicht hart codiert", "type": "code", "points": 2, "visibility": "visible",
-       "required": true, "rules": [{"type": "uses", "value": "loop"}, {"type": "max_numbers", "value": 10}]}
+   },
+   {
+    "id": "nohardcode",
+    "name": "Nicht hart codiert",
+    "type": "code",
+    "points": 2,
+    "visibility": "visible",
+    "required": true,
+    "rules": [
+     {
+      "type": "uses",
+      "value": "loop"
+     },
+     {
+      "type": "max_numbers",
+      "value": 10
+     }
     ]
-  },
-  {
-    "name": "3 · Caesar-Verschlüsselung",
-    "intro": "<p>Implementiere <code>encrypt(text, shift)</code>: Jeder Kleinbuchstabe wird um <code>shift</code> Stellen im Alphabet verschoben (z → a). Andere Zeichen bleiben gleich.</p>",
-    "starter": "def encrypt(text, shift):\n    # Dein Code hier\n    pass\n",
-    "reference": "def encrypt(text, shift):\n    out = \"\"\n    for ch in text:\n        if 'a' <= ch <= 'z':\n            out += chr((ord(ch) - 97 + shift) % 26 + 97)\n        else:\n            out += ch\n    return out\n",
-    "maxattempts": 5,
-    "tests": [
-      {"id": "abc", "name": "encrypt('abc', 1)", "type": "function", "function": "encrypt", "points": 2,
-       "visibility": "visible", "inputs": [{"kind": "fixed", "value": "'abc'"}, {"kind": "fixed", "value": "1"}],
-       "expected": {"source": "fixed", "value": "'bcd'"}, "compare": {"mode": "exact"}},
-      {"id": "wrap", "name": "Über z hinaus", "type": "function", "function": "encrypt", "points": 2,
-       "visibility": "visible", "inputs": [{"kind": "fixed", "value": "'xyz'"}, {"kind": "fixed", "value": "3"}],
-       "expected": {"source": "reference"}, "compare": {"mode": "exact"}},
-      {"id": "random", "name": "Zufällige Texte", "type": "function", "function": "encrypt", "points": 4,
-       "visibility": "visible", "repeat": 5,
-       "inputs": [{"kind": "str", "charset": "text", "min_len": 3, "max_len": 20}, {"kind": "int", "min": 0, "max": 25}],
-       "expected": {"source": "reference"}, "compare": {"mode": "exact"}},
-      {"id": "hidden", "name": "Versteckte Tests", "type": "function", "function": "encrypt", "points": 2,
-       "visibility": "hidden", "repeat": 5,
-       "inputs": [{"kind": "str", "charset": "letters", "min_len": 1, "max_len": 15}, {"kind": "int", "min": 26, "max": 60}],
-       "expected": {"source": "reference"}, "compare": {"mode": "exact"}}
+   }
+  ]
+ },
+ {
+  "name": "3 · Caesar-Verschlüsselung",
+  "intro": "<p>Implementiere <code>encrypt(text, shift)</code>: Jeder Kleinbuchstabe wird um <code>shift</code> Stellen im Alphabet verschoben (z → a). Andere Zeichen bleiben gleich.</p>",
+  "starter": "def encrypt(text, shift):\n    # Dein Code hier\n    pass\n",
+  "reference": "def encrypt(text, shift):\n    out = \"\"\n    for ch in text:\n        if 'a' <= ch <= 'z':\n            out += chr((ord(ch) - 97 + shift) % 26 + 97)\n        else:\n            out += ch\n    return out\n",
+  "maxattempts": 5,
+  "tests": [
+   {
+    "id": "abc",
+    "name": "encrypt('abc', 1)",
+    "type": "function",
+    "function": "encrypt",
+    "points": 2,
+    "visibility": "visible",
+    "inputs": [
+     {
+      "kind": "fixed",
+      "value": "'abc'"
+     },
+     {
+      "kind": "fixed",
+      "value": "1"
+     }
+    ],
+    "expected": {
+     "source": "fixed",
+     "value": "'bcd'"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   },
+   {
+    "id": "wrap",
+    "name": "Über z hinaus",
+    "type": "function",
+    "function": "encrypt",
+    "points": 2,
+    "visibility": "visible",
+    "inputs": [
+     {
+      "kind": "fixed",
+      "value": "'xyz'"
+     },
+     {
+      "kind": "fixed",
+      "value": "3"
+     }
+    ],
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   },
+   {
+    "id": "random",
+    "name": "Zufällige Texte",
+    "type": "function",
+    "function": "encrypt",
+    "points": 4,
+    "visibility": "visible",
+    "repeat": 5,
+    "inputs": [
+     {
+      "kind": "str",
+      "charset": "text",
+      "min_len": 3,
+      "max_len": 20
+     },
+     {
+      "kind": "int",
+      "min": 0,
+      "max": 25
+     }
+    ],
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   },
+   {
+    "id": "hidden",
+    "name": "Versteckte Tests",
+    "type": "function",
+    "function": "encrypt",
+    "points": 2,
+    "visibility": "hidden",
+    "repeat": 5,
+    "inputs": [
+     {
+      "kind": "str",
+      "charset": "letters",
+      "min_len": 1,
+      "max_len": 15
+     },
+     {
+      "kind": "int",
+      "min": 26,
+      "max": 60
+     }
+    ],
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   }
+  ]
+ },
+ {
+  "name": "4 · Bankkonto (Klasse)",
+  "intro": "<p>Schreibe eine Klasse <code>Konto</code> mit Attribut <code>stand</code>, Methode <code>einzahlen(betrag)</code> und <code>abheben(betrag)</code>. Abheben über den Kontostand hinaus ist nicht erlaubt (dann gibt <code>abheben</code> False zurück und ändert nichts).</p>",
+  "starter": "class Konto:\n    def __init__(self, stand):\n        self.stand = stand\n",
+  "reference": "class Konto:\n    def __init__(self, stand):\n        self.stand = stand\n\n    def einzahlen(self, betrag):\n        self.stand += betrag\n        return self.stand\n\n    def abheben(self, betrag):\n        if betrag > self.stand:\n            return False\n        self.stand -= betrag\n        return True\n",
+  "tests": [
+   {
+    "id": "einzahlen",
+    "name": "Einzahlen",
+    "type": "class",
+    "class": "Konto",
+    "points": 4,
+    "visibility": "visible",
+    "repeat": 3,
+    "inputs": [
+     {
+      "kind": "int",
+      "min": 0,
+      "max": 500
+     }
+    ],
+    "calls": [
+     {
+      "method": "einzahlen",
+      "args": [
+       {
+        "kind": "int",
+        "min": 1,
+        "max": 200
+       }
+      ]
+     }
+    ],
+    "target": {
+     "type": "attr",
+     "name": "stand"
+    },
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   },
+   {
+    "id": "abheben",
+    "name": "Abheben mit Deckung",
+    "type": "class",
+    "class": "Konto",
+    "points": 3,
+    "visibility": "visible",
+    "inputs": [
+     {
+      "kind": "fixed",
+      "value": "100"
+     }
+    ],
+    "calls": [
+     {
+      "method": "abheben",
+      "args": [
+       {
+        "kind": "fixed",
+        "value": "30"
+       }
+      ]
+     },
+     {
+      "method": "abheben",
+      "args": [
+       {
+        "kind": "fixed",
+        "value": "500"
+       }
+      ]
+     }
+    ],
+    "target": {
+     "type": "returns"
+    },
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   },
+   {
+    "id": "stand",
+    "name": "Kontostand nach Überziehungsversuch",
+    "type": "class",
+    "class": "Konto",
+    "points": 3,
+    "visibility": "nameonly",
+    "inputs": [
+     {
+      "kind": "int",
+      "min": 10,
+      "max": 50
+     }
+    ],
+    "repeat": 3,
+    "calls": [
+     {
+      "method": "abheben",
+      "args": [
+       {
+        "kind": "int",
+        "min": 60,
+        "max": 100
+       }
+      ]
+     }
+    ],
+    "target": {
+     "type": "attr",
+     "name": "stand"
+    },
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   }
+  ]
+ },
+ {
+  "name": "5 · Temperaturverlauf (Diagramm)",
+  "intro": "<p>Stelle die Temperaturen der Woche als <strong>Liniendiagramm</strong> dar: x = Tag (1–7), y = Temperatur. Beschrifte die Achsen und gib dem Diagramm einen Titel.</p>",
+  "starter": "import matplotlib.pyplot as plt\n\ntage = [1, 2, 3, 4, 5, 6, 7]\ntemperatur = [18, 20, 21, 19, 17, 22, 24]\n\n# Dein Code hier\n\nplt.show()\n",
+  "reference": "import matplotlib.pyplot as plt\n\ntage = [1, 2, 3, 4, 5, 6, 7]\ntemperatur = [18, 20, 21, 19, 17, 22, 24]\nplt.plot(tage, temperatur, marker='o')\nplt.title('Temperaturverlauf')\nplt.xlabel('Tag')\nplt.ylabel('Temperatur in °C')\nplt.show()\n",
+  "tests": [
+   {
+    "id": "plot",
+    "name": "Liniendiagramm",
+    "type": "plot",
+    "visibility": "visible",
+    "plot": {
+     "tolerance": 0.01,
+     "criteria": {
+      "figure": {
+       "enabled": true,
+       "points": 1
+      },
+      "kind": {
+       "enabled": true,
+       "points": 2
+      },
+      "count": {
+       "enabled": false,
+       "points": 1
+      },
+      "data": {
+       "enabled": true,
+       "points": 3
+      },
+      "title": {
+       "enabled": true,
+       "points": 2,
+       "mode": "present"
+      },
+      "xlabel": {
+       "enabled": true,
+       "points": 1,
+       "mode": "present"
+      },
+      "ylabel": {
+       "enabled": true,
+       "points": 1,
+       "mode": "present"
+      },
+      "legend": {
+       "enabled": false,
+       "points": 1,
+       "mode": "present"
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "6 · Notenrechner (KI-Hilfe)",
+  "intro": "<p>Schreibe eine Funktion <code>note(punkte, maximal)</code>, die die Schulnote (1–6) als ganze Zahl zurückgibt.</p><p>Berechne zuerst den Prozentsatz <code>punkte / maximal * 100</code>. Dann gilt:</p><ul><li>ab 85 % → 1</li><li>ab 70 % → 2</li><li>ab 55 % → 3</li><li>ab 40 % → 4</li><li>ab 20 % → 5</li><li>darunter → 6</li></ul><p>„ab 85 %“ heißt: 85 % zählen schon als 1.</p><p><em>Bei dieser Aufgabe gibt es KI-Hilfe: Wenn ein Test fehlschlägt, klicke auf „Hilf mir“.</em></p>",
+  "starter": "def note(punkte, maximal):\n    # Dein Code hier\n    pass\n",
+  "reference": "def note(punkte, maximal):\n    prozent = punkte / maximal * 100\n    if prozent >= 85:\n        return 1\n    if prozent >= 70:\n        return 2\n    if prozent >= 55:\n        return 3\n    if prozent >= 40:\n        return 4\n    if prozent >= 20:\n        return 5\n    return 6\n",
+  "aihints": 1,
+  "aifree": 1,
+  "aicost": 5,
+  "aimax": 35,
+  "tests": [
+   {
+    "id": "beispiel",
+    "name": "Beispiel: note(45, 50)",
+    "type": "function",
+    "function": "note",
+    "points": 2,
+    "visibility": "visible",
+    "show_expected": "always",
+    "inputs": [
+     {
+      "kind": "fixed",
+      "value": "45"
+     },
+     {
+      "kind": "fixed",
+      "value": "50"
+     }
+    ],
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   },
+   {
+    "id": "grenze",
+    "name": "Genau auf der Grenze",
+    "type": "function",
+    "function": "note",
+    "points": 2,
+    "visibility": "visible",
+    "show_expected": "always",
+    "inputs": [
+     {
+      "kind": "choice",
+      "options": "85, 70, 55, 40, 20"
+     },
+     {
+      "kind": "fixed",
+      "value": "100"
+     }
+    ],
+    "repeat": 5,
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   },
+   {
+    "id": "zufall",
+    "name": "Zufällige Punktzahlen",
+    "type": "function",
+    "function": "note",
+    "points": 4,
+    "visibility": "visible",
+    "repeat": 6,
+    "inputs": [
+     {
+      "kind": "int",
+      "min": 0,
+      "max": 60
+     },
+     {
+      "kind": "choice",
+      "options": "60, 40, 25"
+     }
+    ],
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   },
+   {
+    "id": "typ",
+    "name": "Rückgabe ist eine ganze Zahl",
+    "type": "function",
+    "function": "note",
+    "points": 1,
+    "visibility": "visible",
+    "inputs": [
+     {
+      "kind": "int",
+      "min": 0,
+      "max": 30
+     },
+     {
+      "kind": "fixed",
+      "value": "30"
+     }
+    ],
+    "repeat": 2,
+    "expected": {
+     "source": "none"
+    },
+    "properties": [
+     {
+      "type": "type",
+      "value": "int"
+     }
     ]
-  },
-  {
-    "name": "4 · Bankkonto (Klasse)",
-    "intro": "<p>Schreibe eine Klasse <code>Konto</code> mit Attribut <code>stand</code>, Methode <code>einzahlen(betrag)</code> und <code>abheben(betrag)</code>. Abheben über den Kontostand hinaus ist nicht erlaubt (dann gibt <code>abheben</code> False zurück und ändert nichts).</p>",
-    "starter": "class Konto:\n    def __init__(self, stand):\n        self.stand = stand\n",
-    "reference": "class Konto:\n    def __init__(self, stand):\n        self.stand = stand\n\n    def einzahlen(self, betrag):\n        self.stand += betrag\n        return self.stand\n\n    def abheben(self, betrag):\n        if betrag > self.stand:\n            return False\n        self.stand -= betrag\n        return True\n",
-    "tests": [
-      {"id": "einzahlen", "name": "Einzahlen", "type": "class", "class": "Konto", "points": 4, "visibility": "visible",
-       "repeat": 3, "inputs": [{"kind": "int", "min": 0, "max": 500}],
-       "calls": [{"method": "einzahlen", "args": [{"kind": "int", "min": 1, "max": 200}]}],
-       "target": {"type": "attr", "name": "stand"}, "expected": {"source": "reference"}, "compare": {"mode": "exact"}},
-      {"id": "abheben", "name": "Abheben mit Deckung", "type": "class", "class": "Konto", "points": 3, "visibility": "visible",
-       "inputs": [{"kind": "fixed", "value": "100"}],
-       "calls": [{"method": "abheben", "args": [{"kind": "fixed", "value": "30"}]},
-                 {"method": "abheben", "args": [{"kind": "fixed", "value": "500"}]}],
-       "target": {"type": "returns"}, "expected": {"source": "reference"}, "compare": {"mode": "exact"}},
-      {"id": "stand", "name": "Kontostand nach Überziehungsversuch", "type": "class", "class": "Konto", "points": 3,
-       "visibility": "nameonly", "inputs": [{"kind": "int", "min": 10, "max": 50}], "repeat": 3,
-       "calls": [{"method": "abheben", "args": [{"kind": "int", "min": 60, "max": 100}]}],
-       "target": {"type": "attr", "name": "stand"}, "expected": {"source": "reference"}, "compare": {"mode": "exact"}}
-    ]
-  },
-  {
-    "name": "5 · Temperaturverlauf (Diagramm)",
-    "intro": "<p>Stelle die Temperaturen der Woche als <strong>Liniendiagramm</strong> dar: x = Tag (1–7), y = Temperatur. Beschrifte die Achsen und gib dem Diagramm einen Titel.</p>",
-    "starter": "import matplotlib.pyplot as plt\n\ntage = [1, 2, 3, 4, 5, 6, 7]\ntemperatur = [18, 20, 21, 19, 17, 22, 24]\n\n# Dein Code hier\n\nplt.show()\n",
-    "reference": "import matplotlib.pyplot as plt\n\ntage = [1, 2, 3, 4, 5, 6, 7]\ntemperatur = [18, 20, 21, 19, 17, 22, 24]\nplt.plot(tage, temperatur, marker='o')\nplt.title('Temperaturverlauf')\nplt.xlabel('Tag')\nplt.ylabel('Temperatur in °C')\nplt.show()\n",
-    "tests": [
-      {"id": "plot", "name": "Liniendiagramm", "type": "plot", "visibility": "visible",
-       "plot": {"tolerance": 0.01, "criteria": {
-         "figure": {"enabled": true, "points": 1}, "kind": {"enabled": true, "points": 2},
-         "count": {"enabled": false, "points": 1}, "data": {"enabled": true, "points": 3},
-         "title": {"enabled": true, "points": 2, "mode": "present"},
-         "xlabel": {"enabled": true, "points": 1, "mode": "present"},
-         "ylabel": {"enabled": true, "points": 1, "mode": "present"},
-         "legend": {"enabled": false, "points": 1, "mode": "present"}}}}
-    ]
-  }
+   },
+   {
+    "id": "null",
+    "name": "Sonderfall",
+    "type": "function",
+    "function": "note",
+    "points": 1,
+    "visibility": "nameonly",
+    "inputs": [
+     {
+      "kind": "fixed",
+      "value": "0"
+     },
+     {
+      "kind": "fixed",
+      "value": "30"
+     }
+    ],
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   }
+  ]
+ }
 ]
