@@ -24,7 +24,7 @@
 import Ajax from 'core/ajax';
 import {exception as displayException, saveCancelPromise} from 'core/notification';
 import {createEditor} from 'mod_mpl/codemirror';
-import {h, clear, loadStrings, fmt} from 'mod_mpl/dom';
+import {h, clear, loadStrings, fmt, icon} from 'mod_mpl/dom';
 import {render as renderResult, hintText} from 'mod_mpl/results';
 
 const KEYS = [
@@ -97,12 +97,12 @@ class Workspace {
             return this.buttons[key];
         };
         const toolbar = h('div.mpl-toolbar', null, [
-            c.allowrun ? btn('run', 'btn-success', '▶ ' + S.ws_run, () => this.toggleRun(), 'Ctrl+Enter') : null,
-            c.allowcheck ? btn('check', 'btn-primary', '✓ ' + S.ws_check, () => this.check(), 'Ctrl+Shift+Enter') : null,
-            c.cansubmit && !c.checkgraded ? btn('submit', 'btn-warning', '⬆ ' + S.ws_submit, () => this.submit()) : null,
+            c.allowrun ? btn('run', 'btn-success', [icon('play'), S.ws_run], () => this.toggleRun(), 'Ctrl+Enter') : null,
+            c.allowcheck ? btn('check', 'btn-primary', [icon('check'), S.ws_check], () => this.check(), 'Ctrl+Shift+Enter') : null,
+            c.cansubmit && !c.checkgraded ? btn('submit', 'btn-warning', [icon('upload'), S.ws_submit], () => this.submit()) : null,
             h('span.mpl-toolbar-spacer'),
             this.status = h('span.mpl-save-status.text-muted.small', {text: ''}),
-            btn('reset', 'btn-outline-secondary.btn-sm', '⟲ ' + S.ws_reset, () => this.reset()),
+            btn('reset', 'btn-outline-secondary.btn-sm', [icon('reset'), S.ws_reset], () => this.reset()),
         ]);
         if (c.cansubmit && c.submitblocker && this.buttons.submit) {
             this.buttons.submit.disabled = true;
@@ -295,7 +295,7 @@ class Workspace {
             hint.remove();
         }
         this.consoleState.textContent = this.S.ws_starting;
-        this.buttons.run.textContent = '■ ' + this.S.ws_stop;
+        this.buttons.run.replaceChildren(icon('stop'), this.S.ws_stop);
         this.buttons.run.classList.replace('btn-success', 'btn-danger');
         this.dirty = false;
         try {
@@ -360,7 +360,7 @@ class Workspace {
             this.consoleInput.disabled = true;
         }
         if (this.buttons.run) {
-            this.buttons.run.textContent = '▶ ' + this.S.ws_run;
+            this.buttons.run.replaceChildren(icon('play'), this.S.ws_run);
             this.buttons.run.classList.replace('btn-danger', 'btn-success');
         }
         if (exit) {
@@ -561,14 +561,14 @@ class Workspace {
                 e.preventDefault();
                 e.stopPropagation();
                 handler();
-            }}, '💡 ' + label + ' · ' + this.costLabel());
+            }}, [icon('bulb'), label + ' · ' + this.costLabel()]);
         btn.dataset.label = label;
         return btn;
     }
 
     refreshHintButtons() {
         this.root.querySelectorAll('.mpl-hint-btn').forEach((btn) => {
-            btn.textContent = '💡 ' + btn.dataset.label + ' · ' + this.costLabel();
+            btn.replaceChildren(icon('bulb'), btn.dataset.label + ' · ' + this.costLabel());
             btn.title = this.costTitle();
             btn.disabled = !!this.ai.blocked;
         });
@@ -630,8 +630,8 @@ class Workspace {
         const title = hint.kind === 'test' ? fmt(S.ai_kind_test, hint.title) : S.ai_kind_console +
             (hint.title ? ' (' + hint.title + ')' : '');
         const card = h('div.mpl-hint-card', null, [
-            h('div.mpl-hint-head', {text: '💡 ' + title + ' · ' + hint.time + ' · ' +
-                (hint.cost > 0 ? '−' + hint.cost + ' %' : S.ai_freehint)}),
+            h('div.mpl-hint-head', null, [icon('bulb'), title + ' · ' + hint.time + ' · ' +
+                (hint.cost > 0 ? '−' + hint.cost + ' %' : S.ai_freehint)]),
             hintText(hint.hint),
         ]);
         (hint.followups || []).forEach((f) => {

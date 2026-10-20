@@ -27,7 +27,7 @@
 import Ajax from 'core/ajax';
 import {exception as displayException} from 'core/notification';
 import {fromTextarea, createEditor} from 'mod_mpl/codemirror';
-import {h, clear, loadStrings, fmt, num} from 'mod_mpl/dom';
+import {h, clear, loadStrings, fmt, num, icon} from 'mod_mpl/dom';
 import {render as renderResult} from 'mod_mpl/results';
 import {init as initAuthor} from 'mod_mpl/author';
 import {getInstanceForElementId} from 'editor_tiny/editor';
@@ -238,8 +238,9 @@ class Builder {
         }}), ' ', label]);
     }
 
-    iconBtn(label, title, handler, cls = 'btn-outline-secondary') {
-        return h('button.btn.btn-sm.' + cls, {type: 'button', title, 'aria-label': title, onClick: handler}, label);
+    iconBtn(name, title, handler, cls = 'btn-outline-secondary') {
+        return h('button.btn.btn-sm.mpl-iconbtn.' + cls, {type: 'button', title, 'aria-label': title, onClick: handler},
+            icon(name));
     }
 
     // ----- value specifications ------------------------------------------
@@ -261,7 +262,7 @@ class Builder {
         const row = h('div.mpl-tb-valuerow', null, [
             context === 'item' ? null : h('span.mpl-tb-index', {text: (index + 1) + '.'}),
             fields,
-            context === 'item' ? null : this.iconBtn('✕', S.tb_remove, () => {
+            context === 'item' ? null : this.iconBtn('close', S.tb_remove, () => {
                 list.splice(index, 1);
                 this.save();
                 this.render();
@@ -366,7 +367,7 @@ class Builder {
             this.render();
         };
         const header = h('div.mpl-tb-head', null, [
-            this.iconBtn(isOpen ? '▾' : '▸', isOpen ? S.tb_collapse : S.tb_expand, () => {
+            this.iconBtn(isOpen ? 'down' : 'right', isOpen ? S.tb_collapse : S.tb_expand, () => {
                 if (isOpen) {
                     this.open.delete(t.id);
                 } else {
@@ -383,9 +384,9 @@ class Builder {
                     this.number(t, 'points', {min: 0, 'aria-label': S.tb_points})]),
             this.select(t, 'visibility', ['visible', 'nameonly', 'hidden'].map((v) => [v, S['vis_' + v]]), false),
             h('span.mpl-toolbar-spacer'),
-            this.iconBtn('↑', S.tb_moveup, () => move(-1)),
-            this.iconBtn('↓', S.tb_movedown, () => move(1)),
-            this.iconBtn('⧉', S.tb_duplicate, () => {
+            this.iconBtn('up', S.tb_moveup, () => move(-1)),
+            this.iconBtn('arrowdown', S.tb_movedown, () => move(1)),
+            this.iconBtn('copy', S.tb_duplicate, () => {
                 const copy = JSON.parse(JSON.stringify(t));
                 copy.id = uid();
                 copy.name = t.name + ' (2)';
@@ -394,7 +395,7 @@ class Builder {
                 this.save();
                 this.render();
             }),
-            this.iconBtn('🗑', S.tb_delete, () => {
+            this.iconBtn('trash', S.tb_delete, () => {
                 // eslint-disable-next-line no-alert
                 if (window.confirm(S.tb_deleteconfirm)) {
                     this.tests.splice(i, 1);
@@ -450,7 +451,7 @@ class Builder {
                     h('div.mpl-tb-inline', null, [h('span.mpl-tb-mono', {text: 'obj.'}),
                         this.text(call, 'method', {class: 'mpl-tb-mono', placeholder: S.tb_method}),
                         h('span.mpl-tb-mono', {text: '(…)'}),
-                        this.iconBtn('✕', S.tb_remove, () => {
+                        this.iconBtn('close', S.tb_remove, () => {
                             t.calls.splice(ci, 1);
                             this.save();
                             this.render();
@@ -567,7 +568,7 @@ class Builder {
                 f.push(this.text(r, 'value', {class: 'mpl-tb-mono mpl-tb-grow',
                     placeholder: r.type.endsWith('contains') ? 'Regex' : 'print'}));
             }
-            f.push(this.iconBtn('✕', S.tb_remove, () => {
+            f.push(this.iconBtn('close', S.tb_remove, () => {
                 t.rules.splice(ri, 1);
                 this.save();
                 this.render();
@@ -599,7 +600,7 @@ class Builder {
             } else if (['contains', 'not_contains', 'regex'].includes(p.type)) {
                 f.push(this.text(p, 'value', {class: 'mpl-tb-mono mpl-tb-grow', placeholder: S.tb_value}));
             }
-            f.push(this.iconBtn('✕', S.tb_remove, () => {
+            f.push(this.iconBtn('close', S.tb_remove, () => {
                 t.properties.splice(pi, 1);
                 this.save();
                 this.render();
@@ -681,7 +682,7 @@ const validationPanel = (root, contextid, S, getReference) => {
     };
     const panel = h('div.mpl-tb-validate', null, [
         h('div.mpl-tb-inline', null, [
-            h('button.btn.btn-secondary.btn-sm', {type: 'button', onClick: () => run(false)}, '▶ ' + S.tb_validate),
+            h('button.btn.btn-secondary.btn-sm', {type: 'button', onClick: () => run(false)}, [icon('play'), S.tb_validate]),
             h('button.btn.btn-link.btn-sm', {type: 'button', onClick: () => {
                 otherWrap.hidden = !otherWrap.hidden;
                 if (!other) {
@@ -695,7 +696,7 @@ const validationPanel = (root, contextid, S, getReference) => {
         out,
     ]);
     append(otherWrap, [h('div.mpl-tb-other-editor'), h('button.btn.btn-secondary.btn-sm.mt-1', {type: 'button',
-        onClick: () => run(true)}, '▶ ' + S.tb_validatecode)]);
+        onClick: () => run(true)}, [icon('play'), S.tb_validatecode])]);
     root.appendChild(panel);
 };
 

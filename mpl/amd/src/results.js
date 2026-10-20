@@ -21,7 +21,7 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-import {h, clear, loadStrings, fmt, num} from 'mod_mpl/dom';
+import {h, clear, loadStrings, fmt, num, icon} from 'mod_mpl/dom';
 
 export const STRING_KEYS = [
     'res_points', 'res_attempt', 'res_attemptsleft', 'res_currentgrade', 'res_input', 'res_expected',
@@ -74,7 +74,7 @@ export const hintText = (text) => {
     return box;
 };
 
-const ICONS = {passed: '✔', failed: '✖', partial: '◐', error: '⚠', config_error: '⚙'};
+const ICONS = {passed: 'passed', failed: 'failed', partial: 'partial', error: 'error', config_error: 'config'};
 
 /**
  * Pre block, marks lines that differ from the other text.
@@ -124,7 +124,8 @@ const plotImages = (plots, S) => {
 const criteriaTable = (criteria, S) => h('table.mpl-criteria.table.table-sm', null, [
     h('thead', null, h('tr', null, [h('th', {text: S.res_criterion}), h('th', {text: S.res_points}), h('th')])),
     h('tbody', null, criteria.map((c) => h('tr.' + (c.passed ? 'mpl-ok' : 'mpl-bad'), null, [
-        h('td', null, [h('span.mpl-icon', {text: c.passed ? ICONS.passed : ICONS.failed}), ' ', S['crit_' + c.key] || c.label]),
+        h('td', null, [h('span.mpl-icon.' + (c.passed ? 'mpl-ok' : 'mpl-bad'), null, icon(c.passed ? 'passed' : 'failed')), ' ',
+            S['crit_' + c.key] || c.label]),
         h('td', {text: num(c.awarded) + ' / ' + num(c.points)}),
         h('td.text-muted.small', {text: c.message || ''}),
     ]))),
@@ -145,7 +146,7 @@ const instanceView = (test, inst, index, S, full) => {
     const multi = test.instances.length > 1;
     if (multi) {
         parts.push(h('div.mpl-instance-title', null, [
-            h('span.mpl-icon.' + (inst.passed ? 'mpl-ok' : 'mpl-bad'), {text: inst.passed ? ICONS.passed : ICONS.failed}),
+            h('span.mpl-icon.' + (inst.passed ? 'mpl-ok' : 'mpl-bad'), null, icon(inst.passed ? 'passed' : 'failed')),
             ' ' + fmt(S.res_instance, index + 1),
         ]));
     }
@@ -219,7 +220,7 @@ const testView = (test, S, full, opts) => {
         badges.push(h('span.badge.bg-secondary.badge-secondary.mpl-badge', {text: S['vis_' + test.visibility]}));
     }
     const summary = h('summary.mpl-test-summary', null, [
-        h('span.mpl-status-icon.mpl-status-' + status, {text: ICONS[status] || '?', title: S['res_status_' + status]}),
+        h('span.mpl-status-icon.mpl-status-' + status, {title: S['res_status_' + status]}, icon(ICONS[status] || 'error')),
         h('span.mpl-test-name', {text: test.name}),
         badges,
         h('span.mpl-test-points', {text: num(test.awarded) + ' / ' + num(test.points)}),
@@ -307,7 +308,7 @@ export const render = async(container, result, opts = {}) => {
     result.tests.forEach((test) => container.appendChild(testView(test, S, full, opts)));
     if (result.hidden && result.hidden.count) {
         container.appendChild(h('div.mpl-test.mpl-hidden-summary', null, [
-            h('span.mpl-status-icon', {text: '🔒'}),
+            h('span.mpl-status-icon', null, icon('lock')),
             fmt(S.res_hidden, {count: result.hidden.count, passed: result.hidden.passed}),
             h('span.mpl-test-points', {text: num(result.hidden.awarded) + ' / ' + num(result.hidden.points)}),
         ]));

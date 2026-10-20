@@ -26,7 +26,7 @@
 
 import Ajax from 'core/ajax';
 import {exception as displayException} from 'core/notification';
-import {h, clear, loadStrings, fmt, num} from 'mod_mpl/dom';
+import {h, clear, loadStrings, fmt, num, icon} from 'mod_mpl/dom';
 
 const KEYS = [
     'au_title', 'au_intro', 'au_placeholder_new', 'au_placeholder_change', 'au_create', 'au_change', 'au_working',
@@ -102,9 +102,10 @@ export const init = async(form, contextid, api, supportHtml) => {
             parts.push(fmt(S.au_validation_wrong, {caught, total: v.wrong.length}));
         }
         return h('div.mpl-au-validation', null, [
-            h('div', {text: '✔ ' + parts.join(' · ')}),
+            h('div', null, [icon('passed'), parts.join(' · ')]),
             (v.wrong || []).length ? h('ul.small.mb-0', null, v.wrong.map((w) =>
-                h('li', {text: (w.score < w.max ? '✔ ' : '✖ ') + w.description + ' → ' + num(w.score) + '/' + num(w.max)}))) : null,
+                h('li.' + (w.score < w.max ? 'mpl-ok' : 'mpl-bad'), null, [icon(w.score < w.max ? 'check' : 'close'),
+                    w.description + ' → ' + num(w.score) + '/' + num(w.max)]))) : null,
         ]);
     };
 
@@ -112,7 +113,7 @@ export const init = async(form, contextid, api, supportHtml) => {
         clear(log);
         chat.forEach((m) => {
             const item = h('div.mpl-au-msg.mpl-au-' + m.role, null, [
-                h('div.mpl-au-who', {text: m.role === 'teacher' ? S.au_you : '🪄 ' + S.au_ai}),
+                h('div.mpl-au-who', null, m.role === 'teacher' ? S.au_you : [icon('sparkles'), S.au_ai]),
                 h('div.mpl-au-text', {text: m.content}),
             ]);
             if (m.role === 'assistant') {
@@ -130,7 +131,7 @@ export const init = async(form, contextid, api, supportHtml) => {
         log.hidden = !chat.length;
         examples.hidden = chat.length > 0 || hasTask();
         const change = hasTask();
-        button.textContent = '🪄 ' + (change ? S.au_change : S.au_create);
+        button.replaceChildren(icon('sparkles'), change ? S.au_change : S.au_create);
         input.placeholder = change ? S.au_placeholder_change : S.au_placeholder_new;
         log.scrollTop = log.scrollHeight;
     };
@@ -142,7 +143,7 @@ export const init = async(form, contextid, api, supportHtml) => {
             undo.hidden = true;
             progress.textContent = S.au_undone;
         }
-    }}, '↶ ' + S.au_undo);
+    }}, [icon('undo'), S.au_undo]);
 
     const run = async() => {
         const text = input.value.trim();
@@ -221,7 +222,7 @@ export const init = async(form, contextid, api, supportHtml) => {
         body.lastChild.innerHTML = supportHtml;
     }
     const panel = h('details.mpl-au', {open: !hasTask() || chat.length > 0}, [
-        h('summary.mpl-au-summary', {text: '🪄 ' + S.au_title}),
+        h('summary.mpl-au-summary', null, [icon('sparkles'), S.au_title]),
         body,
     ]);
     form.prepend(panel);

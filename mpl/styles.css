@@ -581,9 +581,6 @@
     font-weight: 600;
 }
 
-.mpl-hint-q::before {
-    content: "❓ ";
-}
 
 .mpl-hint-a {
     padding-left: 1.4rem;
@@ -682,4 +679,49 @@
 
 .mpl-support a {
     font-weight: 600;
+}
+
+/* Inline SVG icons (amd/src/dom.js icon()). */
+.mpl-svg {
+    width: 1em;
+    height: 1em;
+    vertical-align: -.125em;
+    flex-shrink: 0;
+}
+
+.btn .mpl-svg,
+.mpl-hint-head .mpl-svg,
+.mpl-au-who .mpl-svg,
+.mpl-au-summary .mpl-svg,
+.mpl-au-validation .mpl-svg,
+.mpl-support .mpl-svg {
+    margin-right: .4em;
+}
+
+.btn.mpl-iconbtn .mpl-svg {
+    margin-right: 0;
+}
+
+.mpl-status-icon .mpl-svg {
+    width: 1.1em;
+    height: 1.1em;
+}
+
+.mpl-svg-play,
+.mpl-svg-stop {
+    width: .85em;
+    height: .85em;
+    vertical-align: -.05em;
+}
+
+.mpl-status-config_error {
+    color: #6c757d;
+}
+
+.mpl-hint-head .mpl-svg-bulb {
+    color: #c77c02;
+}
+
+.mpl-au-validation li.mpl-bad {
+    color: #ca3120;
 }
