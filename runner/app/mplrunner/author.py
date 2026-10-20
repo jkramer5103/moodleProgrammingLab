@@ -123,7 +123,9 @@ Gute Aufgaben (orientiere dich an den Beispielen):
 - Bei einer Aufgabe ohne Eingabe (Ausgabe immer gleich): Pflicht-Code-Test gegen Hartcodieren.
 - Wähle Vergleichsmodi, die faire Lösungen nicht wegen Formatkleinigkeiten durchfallen lassen.
 - Code-Prüfungen nur gegen Hartcodieren oder wenn die Lehrkraft etwas verbietet/verlangt („ohne sorted()“, „mit Rekursion“).
-  Keine Stilvorschriften, die korrekte Lösungen bestrafen (z. B. break, while True oder bestimmte Variablennamen verbieten).
+  Keine Stilvorschriften, die korrekte Lösungen bestrafen (z. B. break, while True, range oder bestimmte Variablennamen verbieten).
+  Verlange keine bestimmte Funktion, wenn es gleichwertige Alternativen gibt: Zufall z. B. per "imports" random prüfen,
+  nicht per "calls" randint (randrange/choice sind genauso richtig).
 - Fällt eine deiner falschen Lösungen bei der Prüfung NICHT durch, ergänze Testfälle, die den Fehler sichtbar machen
   (z. B. teuerster Artikel zuerst), oder ersetze sie durch eine falsche Lösung, die wirklich falsche Ergebnisse liefert.
 
