@@ -1,0 +1,6 @@
+dev/moodle/
+dev/e2e/shots/
+tooling/node_modules/
+dist/
+runner/.env
+__pycache__/

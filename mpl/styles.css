@@ -1,0 +1,526 @@
+/* Moodle Programming Lab (mod_mpl). */
+
+.mpl-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: .5rem;
+}
+
+.mpl-toolbar-spacer {
+    flex: 1 1 auto;
+}
+
+.mpl-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+@media (max-width: 991px) {
+    .mpl-split {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.mpl-editor .cm-editor {
+    max-height: 75vh;
+}
+
+.mpl-shortcuts {
+    margin-top: .25rem;
+}
+
+.mpl-tabs {
+    display: flex;
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: .5rem;
+}
+
+.mpl-tab {
+    border: 0;
+    background: none;
+    padding: .4rem .9rem;
+    border-bottom: 2px solid transparent;
+    color: #495057;
+}
+
+.mpl-tab.active {
+    border-bottom-color: #0f6cbf;
+    color: #0f6cbf;
+    font-weight: 600;
+}
+
+/* Console. */
+.mpl-console-bar {
+    display: flex;
+    align-items: center;
+    min-height: 1.8rem;
+}
+
+.mpl-console {
+    background: #1e1e1e;
+    color: #e6e6e6;
+    border-radius: 6px;
+    font-family: SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 13.5px;
+    display: flex;
+    flex-direction: column;
+    height: 460px;
+    cursor: text;
+}
+
+.mpl-console-output {
+    flex: 1 1 auto;
+    overflow: auto;
+    padding: .6rem .75rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.mpl-console-hint {
+    color: #9aa0a6;
+    font-family: inherit;
+}
+
+.mpl-out-err {
+    color: #ff8a80;
+}
+
+.mpl-out-in {
+    color: #8ab4f8;
+}
+
+.mpl-out-sys {
+    color: #9aa0a6;
+    font-style: italic;
+}
+
+.mpl-console-plot {
+    display: block;
+    max-width: 100%;
+    background: #fff;
+    border-radius: 4px;
+    margin: .4rem 0;
+}
+
+.mpl-console-inputline {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    border-top: 1px solid #333;
+    padding: .35rem .6rem;
+}
+
+.mpl-prompt {
+    color: #8ab4f8;
+}
+
+.mpl-console-input {
+    flex: 1 1 auto;
+    background: transparent;
+    border: 0;
+    color: #fff;
+    font-family: inherit;
+    outline: none;
+}
+
+.mpl-console-input:disabled {
+    opacity: .4;
+}
+
+/* Results. */
+.mpl-results {
+    min-height: 3rem;
+}
+
+.mpl-result-head {
+    margin-bottom: .75rem;
+}
+
+.mpl-result-score {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin: .2rem 0;
+}
+
+.mpl-progress {
+    height: 1.1rem;
+}
+
+.mpl-test {
+    border: 1px solid #dee2e6;
+    border-left-width: 4px;
+    border-radius: 6px;
+    margin-bottom: .5rem;
+    background: #fff;
+}
+
+.mpl-test-passed {
+    border-left-color: #357a32;
+}
+
+.mpl-test-failed,
+.mpl-test-error {
+    border-left-color: #ca3120;
+}
+
+.mpl-test-partial {
+    border-left-color: #f0ad4e;
+}
+
+.mpl-test-config_error {
+    border-left-color: #6c757d;
+}
+
+.mpl-test-summary {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .45rem .7rem;
+    cursor: pointer;
+    list-style: none;
+}
+
+.mpl-test-summary::-webkit-details-marker {
+    display: none;
+}
+
+.mpl-hidden-summary {
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+    padding: .45rem .7rem;
+    border-left-color: #6c757d;
+}
+
+.mpl-test-name {
+    font-weight: 600;
+}
+
+.mpl-test-points {
+    margin-left: auto;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.mpl-status-icon {
+    width: 1.3rem;
+    text-align: center;
+    font-weight: 700;
+}
+
+.mpl-status-passed,
+.mpl-ok .mpl-icon,
+.mpl-icon.mpl-ok {
+    color: #357a32;
+}
+
+.mpl-status-failed,
+.mpl-status-error,
+.mpl-bad .mpl-icon,
+.mpl-icon.mpl-bad {
+    color: #ca3120;
+}
+
+.mpl-status-partial {
+    color: #c77c02;
+}
+
+.mpl-test-body {
+    padding: 0 .7rem .6rem;
+}
+
+.mpl-instance {
+    border-top: 1px dashed #dee2e6;
+    padding-top: .5rem;
+    margin-top: .5rem;
+}
+
+.mpl-instance:first-child {
+    border-top: 0;
+    margin-top: 0;
+}
+
+.mpl-instance-title {
+    font-weight: 600;
+    font-size: .9rem;
+}
+
+.mpl-label {
+    font-size: .75rem;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: #6c757d;
+    margin-top: .35rem;
+}
+
+.mpl-pre {
+    background: #f6f8fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: .35rem .5rem;
+    margin: .1rem 0 .3rem;
+    font-size: 12.5px;
+    max-height: 18rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.mpl-line {
+    display: block;
+}
+
+.mpl-line-diff {
+    background: #ffe3e0;
+}
+
+.mpl-pre-error {
+    background: #fff5f5;
+    border-color: #f5c2c0;
+    color: #8a1c12;
+}
+
+.mpl-compare {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: .5rem;
+}
+
+.mpl-error {
+    margin-top: .3rem;
+    color: #8a1c12;
+}
+
+.mpl-messages {
+    margin: .3rem 0;
+    padding-left: 1.2rem;
+    font-size: .9rem;
+}
+
+.mpl-plot-compare {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: .5rem;
+}
+
+.mpl-plot-img {
+    max-width: 100%;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    background: #fff;
+}
+
+.mpl-criteria td {
+    vertical-align: middle;
+}
+
+.mpl-loading {
+    padding: 1rem 0;
+    color: #6c757d;
+}
+
+/* Test builder. */
+.mpl-cm-wrapper {
+    width: 100%;
+}
+
+.mpl-tb-card {
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    margin-bottom: .75rem;
+    background: #fff;
+}
+
+.mpl-tb-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .4rem;
+    padding: .45rem .6rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.mpl-tb-head .mpl-tb-name {
+    flex: 0 1 16rem;
+    font-weight: 600;
+}
+
+.mpl-tb-head select {
+    width: auto;
+}
+
+.mpl-tb-body {
+    padding: .6rem .9rem .8rem;
+}
+
+.mpl-tb-section {
+    margin: .6rem 0;
+    padding: .5rem .6rem;
+    border-left: 3px solid #e9ecef;
+}
+
+.mpl-tb-section-title {
+    font-weight: 600;
+    margin-bottom: .3rem;
+}
+
+.mpl-tb-field {
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+    margin-bottom: .4rem;
+    max-width: 40rem;
+}
+
+.mpl-tb-label {
+    font-weight: 600;
+    font-size: .9rem;
+}
+
+.mpl-tb-inline,
+.mpl-tb-valuerow,
+.mpl-tb-sub {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .35rem;
+}
+
+.mpl-tb-valuerow {
+    margin-bottom: .3rem;
+}
+
+.mpl-tb-valuerow select,
+.mpl-tb-inline select {
+    width: auto;
+}
+
+.mpl-tb-sub {
+    padding-left: .5rem;
+    border-left: 2px dotted #ced4da;
+}
+
+.mpl-tb-sub .mpl-tb-valuerow {
+    margin-bottom: 0;
+}
+
+.mpl-tb-num {
+    width: 5.5rem;
+}
+
+.mpl-tb-grow {
+    flex: 1 1 14rem;
+    min-width: 10rem;
+    width: auto;
+}
+
+.mpl-tb-mono {
+    font-family: SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.mpl-tb-index,
+.mpl-tb-num-label {
+    color: #6c757d;
+    min-width: 1.4rem;
+}
+
+.mpl-tb-check {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    margin: 0 .6rem 0 0;
+}
+
+.mpl-tb-radios {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .2rem 1rem;
+    margin-bottom: .3rem;
+}
+
+.mpl-tb-call {
+    border: 1px dashed #ced4da;
+    border-radius: 6px;
+    padding: .4rem .5rem;
+    margin-bottom: .4rem;
+}
+
+.mpl-tb-criteria {
+    max-width: 38rem;
+}
+
+.mpl-tb-criteria select,
+.mpl-tb-criteria input {
+    width: auto;
+}
+
+.mpl-tb-advanced {
+    margin-top: .5rem;
+}
+
+.mpl-tb-advanced summary {
+    cursor: pointer;
+    color: #0f6cbf;
+}
+
+.mpl-tb-total {
+    font-weight: 600;
+    margin: .5rem 0;
+}
+
+.mpl-tb-add {
+    margin-top: .5rem;
+}
+
+.mpl-tb-validate {
+    margin-top: 1rem;
+    padding: .75rem;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: #fcfcfd;
+}
+
+.mpl-tb-other {
+    margin: .5rem 0;
+}
+
+/* Moodle's form styles make every .form-control full width – keep the builder compact. */
+.mpl-tb input.form-control,
+.mpl-tb select.form-select,
+.mpl-tb select.custom-select,
+.mpl-tb-validate input.form-control {
+    display: inline-block;
+    width: auto;
+    max-width: 100%;
+}
+
+.mpl-tb input.form-control.mpl-tb-num {
+    width: 5.5rem;
+}
+
+.mpl-tb .mpl-tb-head input.mpl-tb-name {
+    flex: 1 1 14rem;
+    width: auto;
+    min-width: 10rem;
+}
+
+.mpl-tb input.form-control.mpl-tb-grow {
+    flex: 1 1 14rem;
+    min-width: 10rem;
+}
+
+.mpl-tb .mpl-tb-field input.form-control,
+.mpl-tb .mpl-tb-field textarea.form-control,
+.mpl-tb .mpl-tb-section textarea.form-control {
+    width: 100%;
+    max-width: 40rem;
+}
+
+.mpl-tb-head .mpl-tb-inline {
+    flex-wrap: nowrap;
+}

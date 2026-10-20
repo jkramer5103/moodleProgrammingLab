@@ -1,0 +1,22 @@
+{
+  "name": "mod-mpl-build",
+  "private": true,
+  "description": "Builds the AMD modules of mod_mpl (CodeMirror bundle + plugin modules).",
+  "type": "module",
+  "scripts": {
+    "build": "rollup -c"
+  },
+  "devDependencies": {
+    "@codemirror/autocomplete": "^6.18.0",
+    "@codemirror/commands": "^6.7.0",
+    "@codemirror/lang-python": "^6.1.6",
+    "@codemirror/language": "^6.10.3",
+    "@codemirror/state": "^6.4.1",
+    "@codemirror/view": "^6.34.0",
+    "@codemirror/search": "^6.5.6",
+    "@lezer/highlight": "^1.2.1",
+    "@rollup/plugin-node-resolve": "^15.3.0",
+    "@rollup/plugin-terser": "^0.4.4",
+    "rollup": "^4.24.0"
+  }
+}

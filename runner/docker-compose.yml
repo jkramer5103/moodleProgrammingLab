@@ -1,0 +1,29 @@
+# Production deployment of the runner (on a server inside the school network).
+# Only the Moodle server needs to reach port 8000. Students never talk to it.
+#
+#   cp .env.example .env   # set MPL_RUNNER_SECRET
+#   docker compose build && docker compose up -d
+services:
+  sandbox-image:
+    # Builds the sandbox image used for every execution; exits immediately.
+    build:
+      context: .
+      dockerfile: sandbox/Dockerfile
+    image: mpl-sandbox:latest
+    entrypoint: ["true"]
+    restart: "no"
+
+  runner:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    image: mpl-runner:latest
+    depends_on:
+      sandbox-image:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${MPL_RUNNER_BIND:-8000}:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

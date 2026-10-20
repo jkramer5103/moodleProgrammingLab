@@ -1,0 +1,52 @@
+# Local development / test environment: Moodle 4.4 + PostgreSQL + runner.
+# Usage: ./setup.sh   (first time)   –   then http://localhost:8080
+name: mpl-dev
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: moodle
+      POSTGRES_PASSWORD: moodle
+      POSTGRES_DB: moodle
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+
+  moodle:
+    image: moodlehq/moodle-php-apache:8.2
+    depends_on: [db, runner]
+    environment:
+      MPL_WWWROOT: ${MPL_WWWROOT:-http://localhost:8080}
+    ports:
+      - "8080:80"
+    volumes:
+      - ./moodle:/var/www/html
+      - ../mpl:/var/www/html/mod/mpl
+      - moodledata:/var/www/moodledata
+      - ./:/mpl-dev:ro
+
+  sandbox-image:
+    build:
+      context: ../runner
+      dockerfile: sandbox/Dockerfile
+    image: mpl-sandbox:latest
+    entrypoint: ["true"]
+    restart: "no"
+
+  runner:
+    build:
+      context: ../runner
+      dockerfile: app/Dockerfile
+    image: mpl-runner:latest
+    depends_on:
+      sandbox-image:
+        condition: service_completed_successfully
+    environment:
+      MPL_RUNNER_SECRET: dev-secret-0123456789abcdef
+      MPL_POOL_SIZE: "3"
+      MPL_INSTANCE: dev
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  dbdata:
+  moodledata:
