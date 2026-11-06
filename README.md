@@ -53,6 +53,12 @@ curl http://localhost:8000/v1/health     # → {"ok":true,"warm":4,"workers":…
 
 ### 2. Plugin installieren
 
+**Fertiges ZIP herunterladen:** Unter [Releases](https://github.com/jkramer5103/moodleProgrammingLab/releases/latest) die Datei `mod_mpl-<version>.zip` herunterladen und direkt in Moodle hochladen. Ein gepushter Versionstag wie `v1.4.0` baut das Plugin und veröffentlicht das ZIP automatisch als Release-Download.
+
+Für Zwischenstände: Unter [GitHub Actions → Build Moodle plugin](https://github.com/jkramer5103/moodleProgrammingLab/actions/workflows/build-plugin.yml) den letzten erfolgreichen Lauf für den gewünschten Branch öffnen und unter **Artifacts** auf **moodle-plugin** klicken (GitHub-Anmeldung erforderlich). Das heruntergeladene Archiv entpacken; darin liegt die installierbare Datei `mod_mpl-<version>.zip`. Jeder Push erstellt einen neuen Download, der 30 Tage verfügbar bleibt.
+
+Alternativ selbst bauen:
+
 ```bash
 tooling/package.sh          # → dist/mod_mpl-1.4.0.zip   (oder: Ordner mpl/ nach <moodle>/mod/mpl kopieren)
 ```

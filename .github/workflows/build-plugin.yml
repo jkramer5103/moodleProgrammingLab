@@ -1,0 +1,64 @@
+name: Build Moodle plugin
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-plugin-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tooling/package-lock.json
+
+      - name: Install build dependencies
+        run: npm ci --no-audit --no-fund
+        working-directory: tooling
+
+      - name: Build installable plugin ZIP
+        run: bash tooling/package.sh
+
+      - name: Upload plugin download
+        uses: actions/upload-artifact@v4
+        with:
+          name: moodle-plugin
+          path: dist/mod_mpl-*.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: moodle-plugin
+          path: dist
+
+      - name: Publish plugin ZIP to GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: >-
+          gh release create "$RELEASE_TAG" dist/mod_mpl-*.zip
+          --verify-tag --title "$RELEASE_TAG" --generate-notes
