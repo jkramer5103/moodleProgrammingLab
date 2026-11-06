@@ -4,7 +4,7 @@ define('CLI_SCRIPT', true);
 require('/var/www/html/config.php');
 require_once($CFG->dirroot . '/mod/mpl/lib.php');
 $u = $DB->get_record('user', ['username' => 'e2etest'], '*', MUST_EXIST);
-foreach (['mpl_submissions', 'mpl_drafts', 'mpl_hints'] as $t) {
+foreach (['mpl_feedback', 'mpl_submissions', 'mpl_drafts', 'mpl_hints', 'mpl_overrides', 'mpl_examlog'] as $t) {
     $DB->delete_records($t, ['userid' => $u->id]);
 }
 foreach ($DB->get_records('mpl') as $mpl) {

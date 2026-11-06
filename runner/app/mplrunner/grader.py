@@ -7,6 +7,7 @@ or the grading rules.
 """
 
 import asyncio
+import base64
 import hashlib
 import json
 import random
@@ -16,11 +17,13 @@ from collections import OrderedDict
 import mplcodec
 from mplcodec import show
 
-from . import codecheck, compare, generators, plots
+from . import codecheck, compare, generators, plots, turtlecmp
 from .config import settings
 
 VALUE_TYPES = ("function", "class")
-PROGRAM_TYPES = ("io", "file", "plot")
+PROGRAM_TYPES = ("io", "file", "plot", "turtle")
+DRAWING_TYPES = ("plot", "turtle")
+MAX_FILES_BYTES = 8 * 1024 * 1024
 ALL_TYPES = VALUE_TYPES + PROGRAM_TYPES + ("code",)
 
 
@@ -40,8 +43,8 @@ class ReferenceCache:
         self.data = OrderedDict()
 
     @staticmethod
-    def key(code, case, limits):
-        raw = json.dumps([code, {k: v for k, v in case.items() if k != "id"}, limits], sort_keys=True)
+    def key(code, case, limits, files_hash=""):
+        raw = json.dumps([code, {k: v for k, v in case.items() if k != "id"}, limits, files_hash], sort_keys=True)
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
     def get(self, key):
@@ -74,7 +77,7 @@ def _limits(req):
 def _needs_reference(test):
     if test.get("type") == "code":
         return False
-    if test.get("type") == "plot":
+    if test.get("type") in DRAWING_TYPES:
         return True
     return (test.get("expected") or {}).get("source", "reference") == "reference"
 
@@ -88,6 +91,47 @@ def _has_random(test):
 
 def _rng_for(seed, test_id, k):
     return random.Random("%s:%s:%s" % (seed, test_id, k))
+
+
+def clean_files(files):
+    """Data files of the task: [{"name", "data" (base64)}]."""
+    out, total = [], 0
+    for f in files or []:
+        if not isinstance(f, dict) or not str(f.get("name") or "").strip():
+            continue
+        data = str(f.get("data") or "")
+        total += len(data) * 3 // 4
+        if total > MAX_FILES_BYTES:
+            raise ConfigError("Die Dateien der Aufgabe sind zu groß (zusammen höchstens %d MB)"
+                              % (MAX_FILES_BYTES // (1024 * 1024)))
+        out.append({"name": str(f["name"]).strip(), "data": data})
+    return out
+
+
+def files_hash(files):
+    if not files:
+        return ""
+    h = hashlib.sha256()
+    for f in files:
+        h.update(f["name"].encode("utf-8") + b"\0" + f["data"].encode("ascii", "replace") + b"\0")
+    return h.hexdigest()
+
+
+def test_files(test):
+    """Files of a single test (text entered in the test builder), replacing task files of the same name."""
+    out = []
+    for f in test.get("files") or []:
+        if not isinstance(f, dict):
+            continue
+        name = str(f.get("name") or "").strip()
+        if not name:
+            continue
+        if "data" in f:
+            data = str(f.get("data") or "")
+        else:
+            data = base64.b64encode(str(f.get("content") or "").encode("utf-8")).decode("ascii")
+        out.append({"name": name, "data": data})
+    return out
 
 
 def build_instances(test, seed):
@@ -109,7 +153,8 @@ def build_instances(test, seed):
                 values.append(v)
                 parts.append(generators.stdin_text(spec, v))
             stdin = "".join(parts)
-            case.update(kind="program", stdin=stdin, capture_plots=(ttype == "plot"))
+            case.update(kind="program", stdin=stdin, capture_plots=(ttype == "plot"),
+                        capture_turtle=(ttype == "turtle"))
             if ttype == "file":
                 filename = (test.get("filename") or "").strip()
                 if not filename:
@@ -151,6 +196,9 @@ def build_instances(test, seed):
             inst["inputs_display"] = "\n".join(lines)
         if test.get("timeout"):
             case["timeout"] = float(test["timeout"])
+        own_files = test_files(test)
+        if own_files:
+            case["files"] = own_files
         instances.append(inst)
     return instances
 
@@ -165,6 +213,8 @@ def observed(test, result):
         return f.get("content") if f.get("exists") else None
     if ttype == "plot":
         return result.get("plots") or []
+    if ttype == "turtle":
+        return result.get("turtle") or {"used": False, "segments": [], "fills": [], "dots": [], "texts": []}
     return mplcodec.decode(result.get("value"))
 
 
@@ -175,6 +225,8 @@ def display(test, value):
         return value if len(value) < 20000 else value[:20000] + "\n…"
     if test.get("type") == "plot":
         return plots.describe(value)
+    if test.get("type") == "turtle":
+        return turtlecmp.describe(value)
     return show(value)
 
 
@@ -205,6 +257,14 @@ async def evaluate(req, pool):
     if seed in (None, ""):
         seed = random.SystemRandom().randrange(1, 2 ** 31)
     timeout, memory = _limits(req)
+    try:
+        files = clean_files(req.get("files"))
+    except ConfigError as exc:
+        files = []
+        files_error = str(exc)
+    else:
+        files_error = None
+    fhash = files_hash(files)
 
     prepared = []
     for index, test in enumerate(tests):
@@ -216,6 +276,8 @@ async def evaluate(req, pool):
                 entry["instances"] = []
                 prepared.append(entry)
                 continue
+            if files_error:
+                raise ConfigError(files_error)
             entry["instances"] = build_instances(test, seed)
             if _needs_reference(test) and not reference.strip():
                 raise ConfigError("Für diesen Test wird eine Musterlösung benötigt")
@@ -241,12 +303,14 @@ async def evaluate(req, pool):
         if not cases:
             return {}
         job = {"mode": "evaluate", "code": source, "cases": cases, "limits": limits}
+        if files:
+            job["files"] = files
         answer = await pool.run(job, job_timeout(cases), memory_mb=memory)
         return {r.get("id"): r for r in answer.get("results") or []}
 
     cached, missing = {}, []
     for case in reference_cases:
-        hit = reference_cache.get(ReferenceCache.key(reference, case, limits))
+        hit = reference_cache.get(ReferenceCache.key(reference, case, limits, fhash))
         if hit is not None:
             cached[case["id"]] = dict(hit, id=case["id"])
         else:
@@ -257,7 +321,7 @@ async def evaluate(req, pool):
     for case in missing:
         res = reference_res.get(case["id"])
         if res and not res.get("error"):
-            reference_cache.put(ReferenceCache.key(reference, case, limits), res)
+            reference_cache.put(ReferenceCache.key(reference, case, limits, fhash), res)
     reference_res.update(cached)
 
     # ---- compare --------------------------------------------------------
@@ -268,7 +332,9 @@ async def evaluate(req, pool):
         ttype = test.get("type")
         points = float(test.get("points") or 0)
         criteria = (test.get("plot") or {}).get("criteria") or {}
-        if ttype == "plot":
+        if ttype == "turtle":
+            criteria = (test.get("turtle") or {}).get("criteria") or turtlecmp.default_criteria()
+        if ttype in DRAWING_TYPES:
             points = sum(float(c.get("points") or 0) for c in criteria.values()
                          if c and c.get("enabled", True))
         out = {
@@ -325,21 +391,29 @@ async def evaluate(req, pool):
                 if ttype == "plot":
                     item["plots"] = {"student": [f.get("png") for f in actual or []],
                                      "reference": [f.get("png") for f in expected or []]}
+                elif ttype == "turtle":
+                    item["plots"] = {"student": [actual.get("png")] if actual.get("png") else [],
+                                     "reference": [expected.get("png")] if expected.get("png") else []}
             elif expected_mode == "fixed":
                 expected = fixed_expected(test)
                 have_expected = True
             if have_expected:
                 item["expected_display"] = display(test, expected)
 
-            if res.get("error") and ttype != "plot":
+            if res.get("error") and ttype not in DRAWING_TYPES:
                 item["messages"].append(res["error"].get("message", ""))
                 continue
 
-            if ttype == "plot":
+            if ttype in DRAWING_TYPES:
                 if res.get("error"):
                     item["messages"].append(res["error"].get("message", ""))
-                crit = plots.compare_figures(actual, expected, criteria,
-                                             (test.get("plot") or {}).get("tolerance"))
+                if ttype == "plot":
+                    crit = plots.compare_figures(actual, expected, criteria,
+                                                 (test.get("plot") or {}).get("tolerance"))
+                else:
+                    opts = test.get("turtle") or {}
+                    crit = turtlecmp.compare(actual, expected, criteria, opts.get("tolerance"),
+                                             opts.get("placement") or "exact")
                 item["criteria"] = crit
                 total = sum(c["points"] for c in crit)
                 got = sum(c["awarded"] for c in crit)

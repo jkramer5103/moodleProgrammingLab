@@ -67,7 +67,14 @@ foreach ($activities as $a) {
         'memory' => 512, 'grade' => 10, 'cmidnumber' => '', 'aihints' => 1, 'aifree' => 1, 'aicost' => 5, 'aimax' => 35,
     ], $a);
     $data->tests = json_encode(['version' => 1, 'tests' => $a['tests']]);
-    unset($data->intro);
+    unset($data->intro, $data->files);
+    // Data files of the task (as uploaded in the settings form).
+    if (!empty($a['files'])) {
+        $data->datafiles = file_get_unused_draft_itemid();
+        foreach ($a['files'] as $filename => $content) {
+            \mod_mpl\manager::draft_put($data->datafiles, $filename, $content);
+        }
+    }
     create_module($data);
     echo "created: {$a['name']}\n";
 }

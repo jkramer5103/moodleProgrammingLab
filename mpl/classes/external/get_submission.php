@@ -71,6 +71,7 @@ class get_submission extends external_api {
         $out['timecreated'] = (int)$sub->timecreated;
         $out['grade'] = $manager->format_grade((float)$sub->fraction);
         $out['code'] = (string)$sub->code;
+        $out['feedback'] = $manager->get_feedback((int)$sub->id);
         return ['json' => json_encode($out, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)];
     }
 

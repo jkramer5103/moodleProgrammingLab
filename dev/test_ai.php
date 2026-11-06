@@ -150,6 +150,32 @@ ok($job['result']['validation']['reference'] == 3 && $job['result']['validation'
     'author validation: reference full, wrong solution caught');
 ok($job['result']['task']['settings'] == ['aihints' => false, 'maxattempts' => 1, 'timeout' => 120],
     'author settings whitelisted and clamped');
+// Assistant asks for an upload, then creates a task with a data file of its own.
+$draftid = file_get_unused_draft_itemid();
+\mod_mpl\manager::draft_put($draftid, 'messwerte.csv', "zeit;wert\n1;5\n");
+$runjob = function($content) use ($coursectx, $draftid) {
+    $start = json_decode(\mod_mpl\external\author_start::execute($coursectx->id,
+        json_encode([['role' => 'teacher', 'content' => $content]]), json_encode([]), $draftid)['json'], true);
+    $job = $start;
+    for ($i = 0; $i < 60 && $job['status'] === 'running'; $i++) {
+        sleep(1);
+        $job = json_decode(\mod_mpl\external\author_poll::execute($coursectx->id, $start['id'])['json'], true);
+    }
+    return $job;
+};
+$job = $runjob('MOCK-UPLOAD Messwerte auswerten');
+ok($job['status'] === 'done' && $job['result']['request_upload']['name'] === 'messwerte.csv' && empty($job['result']['task']),
+    'author asks for an upload instead of inventing data');
+$log = array_map('json_decode', file('/mpl-dev/aimock-log/requests.jsonl'));
+$lastreq = json_encode(end($log)->body->messages);
+ok(strpos($lastreq, 'messwerte.csv') !== false && strpos($lastreq, 'zeit;wert') !== false,
+    'AI sees name and preview of the uploaded files');
+$job = $runjob('MOCK-FILE Summe aus Datei');
+ok($job['status'] === 'done' && $job['result']['task']['files'][0]['name'] === 'werte.txt' && !$job['result']['problems'],
+    'author creates a data file; validation runs with it (problems: ' . json_encode($job['result']['problems'] ?? null) . ')');
+ok($job['result']['validation']['reference'] == 3 && $job['result']['validation']['wrong'][0]['score'] < 3,
+    'per-test file catches the hard-coded solution');
+
 expect_error(function() use ($coursectx) {
     \mod_mpl\external\author_poll::execute($coursectx->id, 'fremderjob');
 }, 'sessionnotfound', 'unknown author job rejected');

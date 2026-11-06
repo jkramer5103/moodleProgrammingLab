@@ -38,6 +38,9 @@ class provider implements
         \core_privacy\local\request\core_userlist_provider,
         \core_privacy\local\request\plugin\provider {
 
+    /** Tables with data of students (each has mplid and userid). */
+    const TABLES = ['mpl_feedback', 'mpl_submissions', 'mpl_drafts', 'mpl_hints', 'mpl_overrides', 'mpl_examlog'];
+
     /**
      * Metadata.
      *
@@ -65,6 +68,24 @@ class provider implements
             'cost' => 'privacy:metadata:hints:cost',
             'timecreated' => 'privacy:metadata:hints:timecreated',
         ], 'privacy:metadata:hints');
+        $collection->add_database_table('mpl_feedback', [
+            'userid' => 'privacy:metadata:feedback:userid',
+            'comment' => 'privacy:metadata:feedback:comment',
+            'authorid' => 'privacy:metadata:feedback:authorid',
+            'timemodified' => 'privacy:metadata:feedback:timemodified',
+        ], 'privacy:metadata:feedback');
+        $collection->add_database_table('mpl_overrides', [
+            'userid' => 'privacy:metadata:overrides:userid',
+            'duedate' => 'privacy:metadata:overrides:duedate',
+            'cutoffdate' => 'privacy:metadata:overrides:cutoffdate',
+            'maxattempts' => 'privacy:metadata:overrides:maxattempts',
+        ], 'privacy:metadata:overrides');
+        $collection->add_database_table('mpl_examlog', [
+            'userid' => 'privacy:metadata:examlog:userid',
+            'event' => 'privacy:metadata:examlog:event',
+            'duration' => 'privacy:metadata:examlog:duration',
+            'timecreated' => 'privacy:metadata:examlog:timecreated',
+        ], 'privacy:metadata:examlog');
         $collection->add_external_location_link('ai', [
             'code' => 'privacy:metadata:ai:code',
             'context' => 'privacy:metadata:ai:context',
@@ -89,9 +110,13 @@ class provider implements
                   JOIN {modules} m ON m.id = cm.module AND m.name = 'mpl'
                  WHERE EXISTS (SELECT 1 FROM {mpl_submissions} s WHERE s.mplid = cm.instance AND s.userid = :u1)
                     OR EXISTS (SELECT 1 FROM {mpl_drafts} d WHERE d.mplid = cm.instance AND d.userid = :u2)
-                    OR EXISTS (SELECT 1 FROM {mpl_hints} h WHERE h.mplid = cm.instance AND h.userid = :u3)";
+                    OR EXISTS (SELECT 1 FROM {mpl_hints} h WHERE h.mplid = cm.instance AND h.userid = :u3)
+                    OR EXISTS (SELECT 1 FROM {mpl_feedback} f WHERE f.mplid = cm.instance AND (f.userid = :u4 OR f.authorid = :u5))
+                    OR EXISTS (SELECT 1 FROM {mpl_overrides} o WHERE o.mplid = cm.instance AND o.userid = :u6)
+                    OR EXISTS (SELECT 1 FROM {mpl_examlog} e WHERE e.mplid = cm.instance AND e.userid = :u7)";
         $list = new contextlist();
-        $list->add_from_sql($sql, ['ctxlevel' => CONTEXT_MODULE, 'u1' => $userid, 'u2' => $userid, 'u3' => $userid]);
+        $list->add_from_sql($sql, ['ctxlevel' => CONTEXT_MODULE, 'u1' => $userid, 'u2' => $userid, 'u3' => $userid,
+            'u4' => $userid, 'u5' => $userid, 'u6' => $userid, 'u7' => $userid]);
         return $list;
     }
 
@@ -106,7 +131,7 @@ class provider implements
             return;
         }
         $params = ['cmid' => $context->instanceid];
-        foreach (['mpl_submissions', 'mpl_drafts', 'mpl_hints'] as $table) {
+        foreach (['mpl_submissions', 'mpl_drafts', 'mpl_hints', 'mpl_feedback', 'mpl_overrides', 'mpl_examlog'] as $table) {
             $sql = "SELECT t.userid FROM {{$table}} t
                       JOIN {course_modules} cm ON cm.instance = t.mplid
                       JOIN {modules} m ON m.id = cm.module AND m.name = 'mpl'
@@ -156,6 +181,22 @@ class provider implements
                     'timecreated' => transform::datetime($h->timecreated),
                 ];
             }, $hints));
+            $data->feedback = array_values(array_map(function($f) {
+                return (object)['line' => $f->line, 'comment' => $f->comment,
+                    'timemodified' => transform::datetime($f->timemodified)];
+            }, $DB->get_records('mpl_feedback', ['mplid' => $cm->instance, 'userid' => $userid], 'id')));
+            $override = $DB->get_record('mpl_overrides', ['mplid' => $cm->instance, 'userid' => $userid]);
+            if ($override) {
+                $data->override = (object)[
+                    'duedate' => $override->duedate ? transform::datetime($override->duedate) : null,
+                    'cutoffdate' => $override->cutoffdate ? transform::datetime($override->cutoffdate) : null,
+                    'maxattempts' => $override->maxattempts,
+                ];
+            }
+            $data->examlog = array_values(array_map(function($e) {
+                return (object)['event' => $e->event, 'detail' => $e->detail, 'duration' => $e->duration,
+                    'timecreated' => transform::datetime($e->timecreated)];
+            }, $DB->get_records('mpl_examlog', ['mplid' => $cm->instance, 'userid' => $userid], 'id')));
             writer::with_context($context)->export_data([], $data);
         }
     }
@@ -171,9 +212,9 @@ class provider implements
             return;
         }
         if ($cm = get_coursemodule_from_id('mpl', $context->instanceid)) {
-            $DB->delete_records('mpl_submissions', ['mplid' => $cm->instance]);
-            $DB->delete_records('mpl_drafts', ['mplid' => $cm->instance]);
-            $DB->delete_records('mpl_hints', ['mplid' => $cm->instance]);
+            foreach (self::TABLES as $table) {
+                $DB->delete_records($table, ['mplid' => $cm->instance]);
+            }
         }
     }
 
@@ -187,9 +228,9 @@ class provider implements
         $userid = $contextlist->get_user()->id;
         foreach ($contextlist->get_contexts() as $context) {
             if ($context instanceof \context_module && ($cm = get_coursemodule_from_id('mpl', $context->instanceid))) {
-                $DB->delete_records('mpl_submissions', ['mplid' => $cm->instance, 'userid' => $userid]);
-                $DB->delete_records('mpl_drafts', ['mplid' => $cm->instance, 'userid' => $userid]);
-                $DB->delete_records('mpl_hints', ['mplid' => $cm->instance, 'userid' => $userid]);
+                foreach (self::TABLES as $table) {
+                    $DB->delete_records($table, ['mplid' => $cm->instance, 'userid' => $userid]);
+                }
             }
         }
     }
@@ -207,8 +248,8 @@ class provider implements
         }
         [$insql, $params] = $DB->get_in_or_equal($userlist->get_userids(), SQL_PARAMS_NAMED);
         $params['mplid'] = $cm->instance;
-        $DB->delete_records_select('mpl_submissions', "mplid = :mplid AND userid $insql", $params);
-        $DB->delete_records_select('mpl_drafts', "mplid = :mplid AND userid $insql", $params);
-        $DB->delete_records_select('mpl_hints', "mplid = :mplid AND userid $insql", $params);
+        foreach (self::TABLES as $table) {
+            $DB->delete_records_select($table, "mplid = :mplid AND userid $insql", $params);
+        }
     }
 }

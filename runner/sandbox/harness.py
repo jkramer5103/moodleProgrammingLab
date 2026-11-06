@@ -58,6 +58,10 @@ try:
         pass
 except Exception:  # pragma: no cover - image always has matplotlib
     HAVE_MPL = False
+try:
+    import mplturtle  # headless "turtle" (no Tk in the sandbox), installed as sys.modules["turtle"] in the child
+except Exception:  # pragma: no cover
+    mplturtle = None
 
 
 def out_line(obj):
@@ -273,11 +277,49 @@ class PlotRecorder:
         plt.close = close
 
 
+def safe_relpath(name):
+    """Relative path inside the working directory, or None if not allowed."""
+    name = os.path.normpath(str(name or "").replace("\\", "/")).lstrip("/")
+    if not name or name in (".", "main.py") or name.startswith("..") or "\0" in name:
+        return None
+    return name
+
+
+def write_data_files(workdir, files):
+    """Data files of the task (e.g. a CSV to read), written before the program starts."""
+    for f in files or []:
+        name = safe_relpath(f.get("name"))
+        if not name:
+            continue
+        path = os.path.join(workdir, name)
+        os.makedirs(os.path.dirname(path) or workdir, exist_ok=True)
+        with open(path, "wb") as fh:
+            fh.write(base64.b64decode(f.get("data") or ""))
+
+
+def merge_files(job_files, case_files):
+    """Files of a single test replace task files with the same name."""
+    merged = {}
+    for f in (job_files or []) + (case_files or []):
+        name = safe_relpath(f.get("name"))
+        if name:
+            merged[name] = f
+    return list(merged.values())
+
+
+def install_turtle(channel, interactive):
+    if mplturtle is None:
+        return
+    sys.modules["turtle"] = mplturtle
+    if interactive:
+        mplturtle.on_show = lambda png: channel.send({"k": "plot", "plot": {"png": png, "axes": [], "turtle": True}})
+
+
 def fresh_globals(name):
     return {"__name__": name, "__file__": "main.py", "__builtins__": builtins, "__doc__": None}
 
 
-def child_main(case, code, channel, workdir, interactive=False):
+def child_main(case, code, channel, workdir, interactive=False, files=None):
     """Runs inside the forked, unprivileged child. Never returns."""
     status = 0
     result = {"error": None, "value": None, "exit_code": 0}
@@ -285,6 +327,8 @@ def child_main(case, code, channel, workdir, interactive=False):
     try:
         os.makedirs(workdir, exist_ok=True)
         os.chdir(workdir)
+        write_data_files(workdir, files)
+        install_turtle(channel, interactive)
         with open("main.py", "w", encoding="utf-8") as fh:
             fh.write(code)
         if "/opt/mpl" in sys.path:
@@ -365,6 +409,16 @@ def child_main(case, code, channel, workdir, interactive=False):
             recorder.snapshot()
         except Exception:
             pass
+    if mplturtle is not None and mplturtle.used():
+        try:
+            if interactive:
+                mplturtle.show_if_pending()
+            elif case.get("capture_turtle"):
+                result["turtle"] = mplturtle.export(with_png=True)
+        except Exception as exc:
+            if case.get("capture_turtle") and not result.get("error"):
+                result["error"] = {"type": "TurtleError", "message": "Zeichnung konnte nicht ausgewertet werden: %s"
+                                   % str(exc)[:500], "traceback": ""}
     result["plots"] = [] if interactive else recorder.figures
     read_file = case.get("read_file")
     if read_file:
@@ -459,7 +513,7 @@ def kill_student_processes():
             return
 
 
-def spawn(case, code, workdir, timeout, file_limit, stdin_data=None, interactive=False):
+def spawn(case, code, workdir, timeout, file_limit, stdin_data=None, interactive=False, files=None):
     in_r, in_w = os.pipe()
     out_r, out_w = os.pipe()
     err_r, err_w = os.pipe()
@@ -485,7 +539,7 @@ def spawn(case, code, workdir, timeout, file_limit, stdin_data=None, interactive
             for fd in (in_r, out_w, err_w):
                 if fd > 2:
                     os.close(fd)
-            child_main(case, code, Channel(res_w), workdir, interactive)
+            child_main(case, code, Channel(res_w), workdir, interactive, files)
         finally:
             os._exit(70)
     os.close(in_r)
@@ -503,14 +557,15 @@ def spawn(case, code, workdir, timeout, file_limit, stdin_data=None, interactive
     return pid, in_w, out_r, err_r, res_r
 
 
-def run_case(case, code, limits, index):
+def run_case(case, code, limits, index, files=None):
     timeout = float(case.get("timeout") or limits.get("timeout", 30))
     output_limit = int(limits.get("output_limit", 1024 * 1024))
     file_limit = int(limits.get("file_limit", 10 * 1024 * 1024))
     workdir = "/tmp/run%d" % index
     started = time.monotonic()
     pid, _, out_r, err_r, res_r = spawn(case, code, workdir, timeout, file_limit,
-                                        stdin_data=case.get("stdin", ""))
+                                        stdin_data=case.get("stdin", ""),
+                                        files=merge_files(files, case.get("files")))
     sel = selectors.DefaultSelector()
     buffers = {out_r: bytearray(), err_r: bytearray(), res_r: bytearray()}
     for fd in buffers:
@@ -610,7 +665,8 @@ def run_case(case, code, limits, index):
 def mode_evaluate(job):
     limits = job.get("limits") or {}
     code = job.get("code", "")
-    results = [run_case(case, code, limits, i) for i, case in enumerate(job.get("cases", []))]
+    files = job.get("files") or []
+    results = [run_case(case, code, limits, i, files) for i, case in enumerate(job.get("cases", []))]
     out_line({"results": results})
 
 
@@ -631,7 +687,7 @@ def mode_interactive(job, stdin_reader):
     file_limit = int(limits.get("file_limit", 10 * 1024 * 1024))
     case = {"kind": "program", "capture_plots": True}
     pid, in_w, out_r, err_r, res_r = spawn(case, job.get("code", ""), "/tmp/run", timeout,
-                                           file_limit, interactive=True)
+                                           file_limit, interactive=True, files=merge_files(job.get("files"), None))
     sel = selectors.DefaultSelector()
     streams = {out_r: "out", err_r: "err", res_r: "res"}
     for fd in streams:

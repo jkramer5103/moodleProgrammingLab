@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="mod/mpl/db" VERSION="20261020" COMMENT="XMLDB file for Moodle mod/mpl"
+<XMLDB PATH="mod/mpl/db" VERSION="20261023" COMMENT="XMLDB file for Moodle mod/mpl"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
 >
@@ -29,6 +29,10 @@
         <FIELD NAME="aicost" TYPE="number" LENGTH="6" NOTNULL="true" DEFAULT="5" SEQUENCE="false" DECIMALS="2" COMMENT="Percent per paid hint"/>
         <FIELD NAME="aimax" TYPE="number" LENGTH="6" NOTNULL="true" DEFAULT="35" SEQUENCE="false" DECIMALS="2" COMMENT="Max. total deduction in percent"/>
         <FIELD NAME="authorchat" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Conversation with the task authoring AI (JSON)"/>
+        <FIELD NAME="exammode" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Exam mode: no AI hints, no pasting from outside, window changes are logged"/>
+        <FIELD NAME="sebmode" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Safe Exam Browser: 0 no, 1 config from Moodle, 2 own keys, 3 any SEB"/>
+        <FIELD NAME="sebkeys" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Allowed SEB config keys / browser exam keys (one per line)"/>
+        <FIELD NAME="sebquitpassword" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="Password to quit SEB (config from Moodle)"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
       </FIELDS>
@@ -49,6 +53,8 @@
         <FIELD NAME="fraction" TYPE="number" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" DECIMALS="7"/>
         <FIELD NAME="status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="graded" SEQUENCE="false"/>
         <FIELD NAME="result" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Full runner result (JSON)"/>
+        <FIELD NAME="testshash" TYPE="char" LENGTH="40" NOTNULL="false" SEQUENCE="false" COMMENT="Hash of tests, reference and files used for grading"/>
+        <FIELD NAME="timeregraded" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
       </FIELDS>
       <KEYS>
@@ -89,6 +95,66 @@
         <FIELD NAME="hint" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
         <FIELD NAME="followups" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Follow-up questions and answers (JSON)"/>
         <FIELD NAME="cost" TYPE="number" LENGTH="6" NOTNULL="true" DEFAULT="0" SEQUENCE="false" DECIMALS="2" COMMENT="Deduction in percent"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="mplid" TYPE="foreign" FIELDS="mplid" REFTABLE="mpl" REFFIELDS="id"/>
+        <KEY NAME="userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="mpluser" UNIQUE="false" FIELDS="mplid, userid"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="mpl_overrides" COMMENT="Per-user or per-group deadlines and attempts">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="mplid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="groupid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="duedate" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="null = as in the activity"/>
+        <FIELD NAME="cutoffdate" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="null = as in the activity"/>
+        <FIELD NAME="maxattempts" TYPE="int" LENGTH="6" NOTNULL="false" SEQUENCE="false" COMMENT="null = as in the activity, 0 = unlimited"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="mplid" TYPE="foreign" FIELDS="mplid" REFTABLE="mpl" REFFIELDS="id"/>
+        <KEY NAME="userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+        <KEY NAME="groupid" TYPE="foreign" FIELDS="groupid" REFTABLE="groups" REFFIELDS="id"/>
+      </KEYS>
+    </TABLE>
+    <TABLE NAME="mpl_feedback" COMMENT="Teacher comments on a submission (general or on a line)">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="mplid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="submissionid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Student"/>
+        <FIELD NAME="line" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="0 = general comment"/>
+        <FIELD NAME="comment" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="authorid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="mplid" TYPE="foreign" FIELDS="mplid" REFTABLE="mpl" REFFIELDS="id"/>
+        <KEY NAME="submissionid" TYPE="foreign" FIELDS="submissionid" REFTABLE="mpl_submissions" REFFIELDS="id"/>
+        <KEY NAME="userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+        <KEY NAME="authorid" TYPE="foreign" FIELDS="authorid" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="mpluser" UNIQUE="false" FIELDS="mplid, userid"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="mpl_examlog" COMMENT="Exam mode: window changes, blocked pastes, Safe Exam Browser checks">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="mplid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="event" TYPE="char" LENGTH="20" NOTNULL="true" SEQUENCE="false" COMMENT="start, left, paste, sebfail"/>
+        <FIELD NAME="detail" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="duration" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Seconds outside the window"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
       </FIELDS>
       <KEYS>

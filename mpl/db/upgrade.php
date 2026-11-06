@@ -82,5 +82,91 @@ function xmldb_mpl_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026102200, 'mpl');
     }
 
+    if ($oldversion < 2026102300) {
+        // Exam mode and Safe Exam Browser.
+        $table = new xmldb_table('mpl');
+        $fields = [
+            new xmldb_field('exammode', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'authorchat'),
+            new xmldb_field('sebmode', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0', 'exammode'),
+            new xmldb_field('sebkeys', XMLDB_TYPE_TEXT, null, null, null, null, null, 'sebmode'),
+            new xmldb_field('sebquitpassword', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'sebkeys'),
+        ];
+        foreach ($fields as $field) {
+            if (!$dbman->field_exists($table, $field)) {
+                $dbman->add_field($table, $field);
+            }
+        }
+
+        // Regrading.
+        $table = new xmldb_table('mpl_submissions');
+        $fields = [
+            new xmldb_field('testshash', XMLDB_TYPE_CHAR, '40', null, null, null, null, 'result'),
+            new xmldb_field('timeregraded', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'testshash'),
+        ];
+        foreach ($fields as $field) {
+            if (!$dbman->field_exists($table, $field)) {
+                $dbman->add_field($table, $field);
+            }
+        }
+
+        // Individual deadlines and attempts.
+        $table = new xmldb_table('mpl_overrides');
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('mplid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, null, null, null);
+        $table->add_field('groupid', XMLDB_TYPE_INTEGER, '10', null, null, null, null);
+        $table->add_field('duedate', XMLDB_TYPE_INTEGER, '10', null, null, null, null);
+        $table->add_field('cutoffdate', XMLDB_TYPE_INTEGER, '10', null, null, null, null);
+        $table->add_field('maxattempts', XMLDB_TYPE_INTEGER, '6', null, null, null, null);
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_key('mplid', XMLDB_KEY_FOREIGN, ['mplid'], 'mpl', ['id']);
+        $table->add_key('userid', XMLDB_KEY_FOREIGN, ['userid'], 'user', ['id']);
+        $table->add_key('groupid', XMLDB_KEY_FOREIGN, ['groupid'], 'groups', ['id']);
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        // Teacher feedback.
+        $table = new xmldb_table('mpl_feedback');
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('mplid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('submissionid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('line', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('comment', XMLDB_TYPE_TEXT, null, null, null, null, null);
+        $table->add_field('authorid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_key('mplid', XMLDB_KEY_FOREIGN, ['mplid'], 'mpl', ['id']);
+        $table->add_key('submissionid', XMLDB_KEY_FOREIGN, ['submissionid'], 'mpl_submissions', ['id']);
+        $table->add_key('userid', XMLDB_KEY_FOREIGN, ['userid'], 'user', ['id']);
+        $table->add_key('authorid', XMLDB_KEY_FOREIGN, ['authorid'], 'user', ['id']);
+        $table->add_index('mpluser', XMLDB_INDEX_NOTUNIQUE, ['mplid', 'userid']);
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        // Exam log.
+        $table = new xmldb_table('mpl_examlog');
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('mplid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('event', XMLDB_TYPE_CHAR, '20', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('detail', XMLDB_TYPE_CHAR, '255', null, null, null, null);
+        $table->add_field('duration', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_key('mplid', XMLDB_KEY_FOREIGN, ['mplid'], 'mpl', ['id']);
+        $table->add_key('userid', XMLDB_KEY_FOREIGN, ['userid'], 'user', ['id']);
+        $table->add_index('mpluser', XMLDB_INDEX_NOTUNIQUE, ['mplid', 'userid']);
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        upgrade_mod_savepoint(true, 2026102300, 'mpl');
+    }
+
     return true;
 }

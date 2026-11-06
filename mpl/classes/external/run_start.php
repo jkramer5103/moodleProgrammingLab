@@ -61,9 +61,10 @@ class run_start extends external_api {
         if (empty($manager->mpl->allowrun) && !$manager->can_grade()) {
             throw new \moodle_exception('runnotallowed', 'mpl');
         }
+        $manager->require_exam_access();
         $code = manager::clean_code($code);
         $manager->save_draft($USER->id, $code);
-        $sid = (new runner())->session_start($code, (int)$USER->id, $manager->limits());
+        $sid = (new runner())->session_start($code, (int)$USER->id, $manager->limits(), $manager->data_files());
         if (empty($SESSION->mod_mpl_sessions) || !is_array($SESSION->mod_mpl_sessions)) {
             $SESSION->mod_mpl_sessions = [];
         }

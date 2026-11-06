@@ -36,6 +36,12 @@ class dates extends activity_dates {
     protected function get_dates(): array {
         global $DB;
         $mpl = $DB->get_record('mpl', ['id' => $this->cm->instance], 'duedate, cutoffdate', MUST_EXIST);
+        if ($this->userid && $DB->record_exists('mpl_overrides', ['mplid' => $this->cm->instance])) {
+            // Individual dates (overrides) of this user.
+            $effective = manager::from_cmid($this->cm->id)->effective((int)$this->userid);
+            $mpl->duedate = $effective->duedate;
+            $mpl->cutoffdate = $effective->cutoffdate;
+        }
         $dates = [];
         if ($mpl->duedate) {
             $dates[] = ['dataid' => 'duedate', 'label' => get_string('activitydate:due', 'mpl'),

@@ -26,6 +26,8 @@ import {exception as displayException, saveCancelPromise} from 'core/notificatio
 import {createEditor} from 'mod_mpl/codemirror';
 import {h, clear, loadStrings, fmt, icon} from 'mod_mpl/dom';
 import {render as renderResult, hintText} from 'mod_mpl/results';
+import {log as examLog, watchFocus} from 'mod_mpl/exam';
+import {init as initFeedback} from 'mod_mpl/feedback';
 
 const KEYS = [
     'ws_run', 'ws_stop', 'ws_check', 'ws_submit', 'ws_reset', 'ws_resetconfirm', 'ws_console', 'ws_results',
@@ -37,6 +39,8 @@ const KEYS = [
     'ai_confirm', 'ai_blocked', 'ai_loading', 'ai_followup_placeholder', 'ai_followup_send', 'ai_followups_left',
     'ai_status', 'ai_teachernote', 'ai_none', 'ai_kind_test', 'ai_kind_console', 'ai_freehint', 'ai_teacherfree',
     'ai_nextfree', 'ai_nextcost', 'ai_buy', 'ai_costtitle', 'ai_freetitle',
+    'ws_files', 'ws_filesintro', 'ws_download', 'ws_preview', 'ws_binaryfile', 'ws_feedback', 'ws_feedbackopen',
+    'ws_feedbackgeneral', 'ws_feedbacklines', 'ex_pasteblocked', 'ex_left', 'ex_sebquit', 'ex_sebquitconfirm',
 ];
 
 const call = (methodname, args) => Ajax.call([{methodname, args}])[0];
@@ -117,11 +121,19 @@ class Workspace {
         }
 
         this.editorEl = h('div.mpl-editor');
+        this.examMsg = h('div.mpl-exam-msg.alert.alert-danger.py-1.px-2.small', {hidden: true, role: 'alert'});
         this.editor = createEditor(this.editorEl, {
             doc: c.code,
             minHeight: '420px',
             onChange: () => this.changed(),
+            onBlockedPaste: c.exam ? (chars) => {
+                examLog(c.cmid, 'paste', chars + ' Zeichen');
+                this.examMessage(S.ex_pasteblocked);
+            } : null,
         });
+        if (c.exam) {
+            watchFocus(c.cmid, (seconds) => this.examMessage(fmt(S.ex_left, Math.round(seconds))));
+        }
         this.editor.view.contentDOM.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
@@ -153,6 +165,9 @@ class Workspace {
         }
         if (this.ai.enabled) {
             addTab('hints', S.ai_tab);
+        }
+        if ((c.files || []).length) {
+            addTab('files', S.ws_files);
         }
 
         // Console.
@@ -197,11 +212,15 @@ class Workspace {
             this.panes.attempts.appendChild(this.attemptsEl);
             this.renderAttempts();
         }
+        if (this.panes.files) {
+            this.panes.files.appendChild(this.filesView());
+        }
 
         clear(this.root);
         append(this.root, [
             hints,
             toolbar,
+            this.examMsg,
             h('div.mpl-split', null, [
                 h('div.mpl-split-main', null, [this.editorEl,
                     h('div.mpl-shortcuts.small.text-muted', {text: S.ws_shortcuts})]),
@@ -215,6 +234,33 @@ class Workspace {
                 this.save.flush();
             }
         });
+    }
+
+    examMessage(text) {
+        this.examMsg.textContent = text;
+        this.examMsg.hidden = false;
+        clearTimeout(this.examMsgTimer);
+        this.examMsgTimer = setTimeout(() => {
+            this.examMsg.hidden = true;
+        }, 8000);
+    }
+
+    filesView() {
+        const S = this.S;
+        return h('div.mpl-files', null, [
+            h('div.small.text-muted.mb-2', {text: S.ws_filesintro}),
+            (this.config.files || []).map((f) => h('div.mpl-file', null, [
+                h('div.mpl-file-head', null, [
+                    icon('file'), h('strong.mpl-tb-mono', {text: f.name}), h('span.small.text-muted', {text: f.sizetext}),
+                    h('span.mpl-toolbar-spacer'),
+                    f.url ? h('a.btn.btn-sm.btn-outline-secondary', {href: f.url, title: S.ws_download}, [icon('download'),
+                        S.ws_download]) : null,
+                ]),
+                f.text ? h('details.mpl-file-preview', {open: (this.config.files || []).length === 1}, [
+                    h('summary.small', {text: S.ws_preview}), h('pre.mpl-pre', {text: f.preview || ''})])
+                    : h('div.small.text-muted', {text: S.ws_binaryfile}),
+            ])),
+        ]);
     }
 
     showTab(key) {
@@ -439,7 +485,7 @@ class Workspace {
         const result = await this.runTests('mod_mpl_submit', this.S.ws_submitting);
         if (result) {
             this.config.attempts.unshift({id: result.submissionid, attempt: result.attempt, grade: result.grade,
-                time: new Date().toLocaleString()});
+                time: new Date().toLocaleString(), feedback: 0, url: null});
             this.config.attemptsleft = result.attemptsleft;
             if (result.attemptsleft === 0) {
                 this.config.submitblocker = '—';
@@ -494,12 +540,25 @@ class Workspace {
         if (this.config.currentgrade) {
             this.attemptsEl.appendChild(h('div.mb-2', {text: this.config.currentgrade}));
         }
+        if (this.config.sebquiturl) {
+            this.attemptsEl.appendChild(h('div.mb-2', null, h('button.btn.btn-sm.btn-outline-danger', {type: 'button',
+                onClick: async() => {
+                    try {
+                        await saveCancelPromise(S.ex_sebquit, S.ex_sebquitconfirm, S.ex_sebquit);
+                    } catch (e) {
+                        return;
+                    }
+                    window.location.href = this.config.sebquiturl;
+                }}, [icon('shield'), S.ex_sebquit])));
+        }
         const table = h('table.table.table-sm.mpl-attempt-table', null, h('tbody', null, this.config.attempts.map((a) =>
             h('tr', null, [
                 h('td', {text: fmt(S.ws_attemptrow, a.attempt)}),
                 h('td', {text: a.time}),
                 h('td', {text: a.grade}),
                 h('td.text-end', null, [
+                    a.feedback && a.url ? h('a.btn.btn-sm.btn-info.mpl-feedback-badge', {href: a.url,
+                        title: S.ws_feedbackopen}, [icon('comment'), fmt(S.ws_feedback, a.feedback)]) : null,
                     h('button.btn.btn-sm.btn-link', {type: 'button', onClick: () => this.showAttempt(a.id, false)},
                         S.ws_viewresult),
                     h('button.btn.btn-sm.btn-link', {type: 'button', onClick: () => this.showAttempt(a.id, true)},
@@ -524,6 +583,19 @@ class Workspace {
             }
             this.showTab('results');
             await renderResult(this.resultsEl, data);
+            const feedback = data.feedback || [];
+            if (feedback.length) {
+                const general = feedback.filter((f) => !f.line);
+                const lines = feedback.length - general.length;
+                const attempt = this.config.attempts.find((x) => x.id === id);
+                this.resultsEl.prepend(h('div.mpl-feedback-summary', null, [
+                    general.map((f) => h('div.mpl-feedback-general', null, [
+                        h('div.mpl-feedback-head', null, [icon('comment'), this.S.ws_feedbackgeneral + ' · ' + f.author]),
+                        h('div.mpl-feedback-text', {text: f.comment})])),
+                    lines && attempt && attempt.url ? h('a.btn.btn-sm.btn-info', {href: attempt.url},
+                        [icon('comment'), fmt(this.S.ws_feedbacklines, lines)]) : null,
+                ]));
+            }
         } catch (e) {
             displayException(e);
         }
@@ -703,8 +775,9 @@ export const initSubmission = async(selector) => {
     const [root, config] = readConfig(selector);
     const editorEl = h('div.mpl-editor');
     const resultsEl = h('div.mpl-results');
-    append(root, [h('div.mpl-split', null, [h('div.mpl-split-main', null, editorEl),
+    const feedbackEl = h('div.mpl-feedback-box');
+    append(root, [feedbackEl, h('div.mpl-split', null, [h('div.mpl-split-main', null, editorEl),
         h('div.mpl-split-side', null, resultsEl)])]);
-    createEditor(editorEl, {doc: config.code, readOnly: true});
+    await initFeedback(feedbackEl, editorEl, config);
     await renderResult(resultsEl, config.result);
 };

@@ -758,5 +758,256 @@
     }
    }
   ]
+ },
+ {
+  "name": "8 · Wetterdaten auswerten (Datei)",
+  "intro": "<p>In der Datei <code>wetter.csv</code> stehen Messwerte einer Wetterstation, eine Zeile pro Tag (Trennzeichen <code>;</code>, erste Zeile = Überschriften):</p><pre>datum;temperatur;regen\n2026-06-01;18.5;0\n…</pre><p>Schreibe ein Programm, das die Datei einliest und ausgibt:</p><ul><li>die <strong>Durchschnittstemperatur</strong> (auf eine Nachkommastelle gerundet) und</li><li>die <strong>Anzahl der Regentage</strong> (Regen größer als 0).</li></ul><p>Beispiel für die Datei oben:</p><pre>Durchschnitt: 19.9\nRegentage: 3</pre><p>Die Datei findest du im Reiter „Dateien“. Achtung: Beim Prüfen wird dein Programm auch mit <em>anderen</em> Wetterdaten getestet.</p>",
+  "starter": "with open(\"wetter.csv\", encoding=\"utf-8\") as datei:\n    # Dein Code hier\n    pass\n",
+  "reference": "summe = 0\nanzahl = 0\nregentage = 0\nwith open(\"wetter.csv\", encoding=\"utf-8\") as datei:\n    next(datei)\n    for zeile in datei:\n        datum, temperatur, regen = zeile.strip().split(\";\")\n        summe += float(temperatur)\n        anzahl += 1\n        if float(regen) > 0:\n            regentage += 1\nprint(\"Durchschnitt:\", round(summe / anzahl, 1))\nprint(\"Regentage:\", regentage)\n",
+  "files": {
+   "wetter.csv": "datum;temperatur;regen\n2026-06-01;18.5;0\n2026-06-02;21.0;2.5\n2026-06-03;23.4;0\n2026-06-04;19.8;7.1\n2026-06-05;16.2;12.0\n2026-06-06;17.9;0\n2026-06-07;22.6;0\n"
+  },
+  "tests": [
+   {
+    "id": "juni",
+    "name": "Juni-Daten (wetter.csv)",
+    "type": "io",
+    "points": 4,
+    "visibility": "visible",
+    "show_expected": "always",
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "numbers",
+     "tolerance": 0.051
+    }
+   },
+   {
+    "id": "winter",
+    "name": "Andere Daten: Winter",
+    "type": "io",
+    "points": 3,
+    "visibility": "nameonly",
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "numbers",
+     "tolerance": 0.051
+    },
+    "files": [
+     {
+      "name": "wetter.csv",
+      "content": "datum;temperatur;regen\n2026-01-10;-2.5;0\n2026-01-11;0.5;1.2\n2026-01-12;3.0;0.4\n2026-01-13;-6.1;0\n"
+     }
+    ]
+   },
+   {
+    "id": "trocken",
+    "name": "Andere Daten: kein Regen",
+    "type": "io",
+    "points": 3,
+    "visibility": "hidden",
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "numbers",
+     "tolerance": 0.051
+    },
+    "files": [
+     {
+      "name": "wetter.csv",
+      "content": "datum;temperatur;regen\n2026-08-01;30.2;0\n2026-08-02;31.9;0\n"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "9 · Turtle: Treppe",
+  "intro": "<p>Die Turtle soll eine <strong>Treppe</strong> zeichnen. Das Programm fragt mit <code>input()</code>, wie viele Stufen es sein sollen.</p><ul><li>Jede Stufe ist <strong>20</strong> Schritte hoch und <strong>20</strong> Schritte breit.</li><li>Die Turtle startet wie immer in der Mitte und schaut nach rechts. Die Treppe geht nach rechts oben: erst hoch, dann nach rechts.</li></ul><p>Bei 3 Stufen sieht das so aus: hoch, rechts, hoch, rechts, hoch, rechts.</p><p><em>Tipp: Mit „Ausführen“ siehst du deine Zeichnung in der Konsole.</em></p>",
+  "starter": "import turtle\n\nstufen = int(input(\"Wie viele Stufen? \"))\n# Dein Code hier\n\nturtle.done()\n",
+  "reference": "import turtle\n\nstufen = int(input(\"Wie viele Stufen? \"))\nt = turtle.Turtle()\nfor i in range(stufen):\n    t.left(90)\n    t.forward(20)\n    t.right(90)\n    t.forward(20)\nturtle.done()\n",
+  "tests": [
+   {
+    "id": "drei",
+    "name": "3 Stufen",
+    "type": "turtle",
+    "visibility": "visible",
+    "show_expected": "always",
+    "inputs": [
+     {
+      "kind": "fixed",
+      "value": "3"
+     }
+    ],
+    "turtle": {
+     "tolerance": 3,
+     "placement": "exact",
+     "criteria": {
+      "drawing": {
+       "enabled": true,
+       "points": 1
+      },
+      "lines": {
+       "enabled": true,
+       "points": 3
+      },
+      "colors": {
+       "enabled": false,
+       "points": 1
+      },
+      "fills": {
+       "enabled": false,
+       "points": 1
+      },
+      "texts": {
+       "enabled": false,
+       "points": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "zufall",
+    "name": "Zufällige Stufenzahl",
+    "type": "turtle",
+    "visibility": "visible",
+    "repeat": 3,
+    "inputs": [
+     {
+      "kind": "int",
+      "min": 2,
+      "max": 9
+     }
+    ],
+    "turtle": {
+     "tolerance": 3,
+     "placement": "exact",
+     "criteria": {
+      "drawing": {
+       "enabled": false,
+       "points": 1
+      },
+      "lines": {
+       "enabled": true,
+       "points": 6
+      },
+      "colors": {
+       "enabled": false,
+       "points": 1
+      },
+      "fills": {
+       "enabled": false,
+       "points": 1
+      },
+      "texts": {
+       "enabled": false,
+       "points": 1
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "10 · Klassenarbeit: Maximum (Prüfungsmodus)",
+  "intro": "<p><strong>Klassenarbeit</strong> – du hast 3 Abgaben.</p><p>Schreibe eine Funktion <code>maximum(zahlen)</code>, die die größte Zahl einer (nicht leeren) Liste zurückgibt. Die eingebaute Funktion <code>max()</code> und <code>sorted()</code> darfst du <em>nicht</em> benutzen.</p><p>Beispiel: <code>maximum([3, 9, 2])</code> → <code>9</code></p>",
+  "starter": "def maximum(zahlen):\n    # Dein Code hier\n    pass\n",
+  "reference": "def maximum(zahlen):\n    groesste = zahlen[0]\n    for z in zahlen:\n        if z > groesste:\n            groesste = z\n    return groesste\n",
+  "maxattempts": 3,
+  "aihints": 0,
+  "exammode": 1,
+  "sebmode": 0,
+  "tests": [
+   {
+    "id": "bsp",
+    "name": "Beispiel",
+    "type": "function",
+    "function": "maximum",
+    "points": 2,
+    "visibility": "visible",
+    "show_expected": "always",
+    "inputs": [
+     {
+      "kind": "fixed",
+      "value": "[3, 9, 2]"
+     }
+    ],
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   },
+   {
+    "id": "neg",
+    "name": "Nur negative Zahlen",
+    "type": "function",
+    "function": "maximum",
+    "points": 2,
+    "visibility": "nameonly",
+    "inputs": [
+     {
+      "kind": "fixed",
+      "value": "[-7, -3, -12]"
+     }
+    ],
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   },
+   {
+    "id": "zufall",
+    "name": "Zufällige Listen",
+    "type": "function",
+    "function": "maximum",
+    "points": 4,
+    "visibility": "visible",
+    "repeat": 5,
+    "inputs": [
+     {
+      "kind": "list",
+      "min_len": 1,
+      "max_len": 12,
+      "item": {
+       "kind": "int",
+       "min": -100,
+       "max": 100
+      }
+     }
+    ],
+    "expected": {
+     "source": "reference"
+    },
+    "compare": {
+     "mode": "exact"
+    }
+   },
+   {
+    "id": "ohnemax",
+    "name": "Ohne max() und sorted()",
+    "type": "code",
+    "points": 2,
+    "visibility": "visible",
+    "required": true,
+    "rules": [
+     {
+      "type": "not_calls",
+      "value": "max"
+     },
+     {
+      "type": "not_calls",
+      "value": "sorted"
+     }
+    ]
+   }
+  ]
  }
 ]

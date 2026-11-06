@@ -21,10 +21,11 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-import {EditorState, Compartment} from '@codemirror/state';
+import {EditorState, Compartment, StateField, StateEffect, RangeSetBuilder} from '@codemirror/state';
 import {
     EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter,
     drawSelection, highlightSpecialChars, rectangularSelection, placeholder as placeholderExt,
+    Decoration, WidgetType,
 } from '@codemirror/view';
 import {defaultKeymap, history, historyKeymap, indentWithTab} from '@codemirror/commands';
 import {
@@ -44,6 +45,105 @@ const theme = EditorView.theme({
 });
 
 /**
+ * A DOM node shown below a line (teacher comments).
+ */
+class BlockWidget extends WidgetType {
+    constructor(dom, key) {
+        super();
+        this.dom = dom;
+        this.key = key;
+    }
+
+    eq(other) {
+        return other.key === this.key;
+    }
+
+    toDOM() {
+        return this.dom;
+    }
+
+    ignoreEvent() {
+        return true;
+    }
+}
+
+const setWidgets = StateEffect.define();
+
+/**
+ * Block widgets below lines: [{line, key, dom}].
+ */
+const widgetField = StateField.define({
+    create: () => Decoration.none,
+    update(deco, tr) {
+        deco = deco.map(tr.changes);
+        tr.effects.forEach((e) => {
+            if (e.is(setWidgets)) {
+                const builder = new RangeSetBuilder();
+                const doc = tr.state.doc;
+                e.value.slice().sort((a, b) => a.line - b.line).forEach((w) => {
+                    const line = doc.line(Math.max(1, Math.min(doc.lines, w.line)));
+                    builder.add(line.to, line.to, Decoration.widget({widget: new BlockWidget(w.dom, w.key), block: true,
+                        side: 1}));
+                });
+                deco = builder.finish();
+            }
+        });
+        return deco;
+    },
+    provide: (f) => EditorView.decorations.from(f),
+});
+
+const normaliseText = (text) => String(text || '').replace(/\r\n/g, '\n').trim();
+
+/**
+ * Exam mode: only allow pasting text that was copied inside this editor.
+ *
+ * @param {Function} onBlocked called with the number of blocked characters
+ * @returns {Extension}
+ */
+const pasteGuard = (onBlocked) => {
+    const copied = new Set();
+    const remember = (view) => {
+        view.state.selection.ranges.forEach((r) => {
+            const text = normaliseText(view.state.sliceDoc(r.from, r.to));
+            if (text) {
+                copied.add(text);
+            }
+        });
+        if (copied.size > 200) {
+            copied.delete(copied.values().next().value);
+        }
+        return false;
+    };
+    const allowed = (text) => {
+        const t = normaliseText(text);
+        return !t || copied.has(t) || [...copied].some((c) => c.includes(t));
+    };
+    return EditorView.domEventHandlers({
+        copy: (e, view) => remember(view),
+        cut: (e, view) => remember(view),
+        paste: (e) => {
+            const text = e.clipboardData ? e.clipboardData.getData('text/plain') : '';
+            if (allowed(text)) {
+                return false;
+            }
+            e.preventDefault();
+            onBlocked(text.length);
+            return true;
+        },
+        drop: (e) => {
+            const text = e.dataTransfer ? e.dataTransfer.getData('text/plain') : '';
+            if (allowed(text) && !(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length)) {
+                return false;
+            }
+            e.preventDefault();
+            onBlocked(text.length);
+            return true;
+        },
+    });
+};
+
+/**
  * Create a Python editor.
  *
  * @param {HTMLElement} parent element to render into
@@ -54,7 +154,10 @@ const theme = EditorView.theme({
  * @param {String} [options.minHeight] CSS height, e.g. "300px"
  * @param {String} [options.maxHeight]
  * @param {String} [options.placeholder]
- * @returns {{getValue: Function, setValue: Function, focus: Function, view: EditorView, setReadOnly: Function}}
+ * @param {Function} [options.onLineClick] called with the line number when a line number is clicked
+ * @param {Function} [options.onBlockedPaste] exam mode: only text copied inside the editor may be pasted
+ * @returns {{getValue: Function, setValue: Function, focus: Function, view: EditorView, setReadOnly: Function,
+ *     setWidgets: Function}}
  */
 export const createEditor = (parent, options = {}) => {
     const readOnly = new Compartment();
@@ -66,7 +169,12 @@ export const createEditor = (parent, options = {}) => {
         sizes['.cm-scroller'] = {maxHeight: options.maxHeight, overflow: 'auto'};
     }
     const extensions = [
-        lineNumbers(),
+        options.onLineClick ? lineNumbers({domEventHandlers: {
+            mousedown: (view, line) => {
+                options.onLineClick(view.state.doc.lineAt(line.from).number);
+                return true;
+            },
+        }}) : lineNumbers(),
         highlightActiveLineGutter(),
         highlightSpecialChars(),
         history(),
@@ -100,6 +208,10 @@ export const createEditor = (parent, options = {}) => {
     if (options.placeholder) {
         extensions.push(placeholderExt(options.placeholder));
     }
+    extensions.push(widgetField);
+    if (options.onBlockedPaste) {
+        extensions.push(pasteGuard(options.onBlockedPaste));
+    }
     const view = new EditorView({
         state: EditorState.create({doc: options.doc || '', extensions}),
         parent,
@@ -116,14 +228,18 @@ export const createEditor = (parent, options = {}) => {
     if (document.fonts && document.fonts.ready) {
         document.fonts.ready.then(() => view.requestMeasure());
     }
-    return {
+    const editor = {
         view,
         getValue: () => view.state.doc.toString(),
         setValue: (text) => view.dispatch({changes: {from: 0, to: view.state.doc.length, insert: text || ''}}),
         focus: () => view.focus(),
         setReadOnly: (flag) => view.dispatch({effects: readOnly.reconfigure([
             EditorState.readOnly.of(flag), EditorView.editable.of(!flag)])}),
+        setWidgets: (widgets) => view.dispatch({effects: setWidgets.of(widgets)}),
     };
+    // Reachable from the DOM (browser tests, debugging): element.mplEditor.
+    parent.mplEditor = editor;
+    return editor;
 };
 
 /**

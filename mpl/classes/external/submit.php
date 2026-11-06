@@ -58,6 +58,7 @@ class submit extends external_api {
         self::validate_context($manager->context);
         require_capability('mod/mpl:view', $manager->context);
         require_capability('mod/mpl:submit', $manager->context);
+        $manager->require_exam_access();
         \core_php_time_limit::raise(360);
         $result = $manager->submit((int)$USER->id, $params['code']);
         return ['json' => json_encode($result, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)];

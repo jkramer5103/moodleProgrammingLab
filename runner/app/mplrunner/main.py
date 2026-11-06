@@ -33,7 +33,7 @@ async def lifespan(app):
     await pool.close()
 
 
-app = FastAPI(title="Moodle Programming Lab Runner", version="1.2.0", lifespan=lifespan,
+app = FastAPI(title="Moodle Programming Lab Runner", version="1.4.0", lifespan=lifespan,
               docs_url=None, redoc_url=None, openapi_url=None)
 
 
@@ -55,7 +55,8 @@ async def info():
     return {"ok": True, "version": app.version, "max_timeout": settings.max_timeout,
             "max_memory_mb": settings.max_memory_mb, "image": settings.image,
             "ai": ai.enabled(), "ai_model": settings.ai_model if ai.enabled() else None,
-            "ai_author_model": settings.ai_author_model if ai.enabled() else None}
+            "ai_author_model": settings.ai_author_model if ai.enabled() else None,
+            "features": ["files", "turtle"]}
 
 
 @app.post("/v1/author", dependencies=[Depends(auth)])
@@ -94,9 +95,12 @@ async def evaluate(req: dict = Body(...)):
 async def create_session(req: dict = Body(...)):
     try:
         limits = req.get("limits") or {}
+        files = grader.clean_files(req.get("files"))
         session = await state["sessions"].create(
             req.get("code") or "", str(req.get("owner") or ""),
-            timeout=limits.get("timeout"), memory=limits.get("memory"))
+            timeout=limits.get("timeout"), memory=limits.get("memory"), files=files)
+    except grader.ConfigError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     except SandboxError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     return {"id": session.id}

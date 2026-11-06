@@ -725,3 +725,166 @@
 .mpl-au-validation li.mpl-bad {
     color: #ca3120;
 }
+
+/* ---- Data files (form widget and student tab) ---- */
+.mpl-datafiles {
+    max-width: 900px;
+}
+.mpl-file {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: .35rem .6rem;
+    margin-bottom: .4rem;
+    background: #fff;
+}
+.mpl-file-head {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+.mpl-file-preview {
+    margin-top: .35rem;
+}
+.mpl-file-preview .mpl-pre,
+pre.mpl-file-preview {
+    max-height: 260px;
+    overflow: auto;
+    font-size: 12px;
+}
+.mpl-df-drop {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
+    border: 2px dashed #ced4da;
+    border-radius: 6px;
+    padding: .5rem .6rem;
+    margin: .4rem 0;
+}
+.mpl-df-drop.mpl-df-over {
+    border-color: #0f6cbf;
+    background: #eef5fc;
+}
+.mpl-df-new {
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+    margin-bottom: .5rem;
+}
+.mpl-files {
+    padding: .25rem 0;
+}
+.mpl-tb-testfile {
+    margin-bottom: .5rem;
+}
+
+/* ---- Teacher feedback ---- */
+.mpl-feedback-box {
+    margin-bottom: .75rem;
+}
+.mpl-fb-title {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    margin-bottom: .35rem;
+}
+.mpl-fb-card,
+.mpl-feedback-general {
+    border: 1px solid #ffe08a;
+    border-left: 4px solid #f0ad4e;
+    border-radius: 6px;
+    padding: .4rem .6rem;
+    margin: .3rem 0;
+    background: #fffbea;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: .9rem;
+    white-space: normal;
+}
+.mpl-fb-line {
+    padding: .1rem .5rem .1rem 2.5rem;
+}
+.mpl-fb-head,
+.mpl-feedback-head {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    font-size: .8rem;
+    color: #6c757d;
+}
+.mpl-fb-text,
+.mpl-feedback-text {
+    white-space: pre-wrap;
+}
+.mpl-fb-form {
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+}
+.mpl-fb-actions {
+    display: flex;
+    gap: .35rem;
+    align-items: center;
+}
+.mpl-fb-editable .cm-lineNumbers .cm-gutterElement {
+    cursor: pointer;
+}
+.mpl-fb-editable .cm-lineNumbers .cm-gutterElement:hover {
+    background: #ffe08a;
+    color: #000;
+}
+.mpl-feedback-summary {
+    margin-bottom: .5rem;
+}
+.mpl-feedback-badge {
+    margin-right: .25rem;
+}
+
+/* ---- Exam mode ---- */
+.mpl-exam-msg {
+    margin-bottom: .5rem;
+}
+.mpl-exam-teacher .mpl-copy-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: .25rem 0;
+}
+.mpl-copy-value {
+    background: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: .15rem .4rem;
+    word-break: break-all;
+}
+.mpl-exam-howto summary {
+    cursor: pointer;
+    font-weight: 600;
+    margin-top: .25rem;
+}
+.mpl-exam-howto ol {
+    margin: .4rem 0;
+    padding-left: 1.25rem;
+}
+.mpl-exam-howto li {
+    margin-bottom: .35rem;
+}
+.mpl-seb-gate {
+    max-width: 720px;
+    margin: 2rem auto;
+    text-align: center;
+}
+
+/* ---- Task assistant: upload requests ---- */
+.mpl-au-upload {
+    margin-top: .4rem;
+    padding: .4rem .6rem;
+    border: 1px dashed #0f6cbf;
+    border-radius: 6px;
+    background: #f5f9fd;
+}
+.mpl-au-files {
+    margin-top: .3rem;
+    color: #495057;
+}

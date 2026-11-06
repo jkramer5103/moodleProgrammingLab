@@ -57,6 +57,7 @@ class save_draft extends external_api {
         $manager = manager::from_cmid($params['cmid']);
         self::validate_context($manager->context);
         require_capability('mod/mpl:view', $manager->context);
+        $manager->require_exam_access();
         $manager->save_draft((int)$USER->id, $params['code']);
         return ['ok' => true];
     }

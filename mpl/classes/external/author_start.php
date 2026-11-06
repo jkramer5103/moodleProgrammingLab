@@ -41,6 +41,7 @@ class author_start extends external_api {
             'contextid' => new external_value(PARAM_INT, 'Course or module context'),
             'messages' => new external_value(PARAM_RAW, 'Conversation (JSON)'),
             'state' => new external_value(PARAM_RAW, 'Current form state (JSON)'),
+            'draftitemid' => new external_value(PARAM_INT, 'Draft area with the data files of the form', VALUE_DEFAULT, 0),
         ]);
     }
 
@@ -50,11 +51,13 @@ class author_start extends external_api {
      * @param int $contextid
      * @param string $messages
      * @param string $state
+     * @param int $draftitemid
      * @return array
      */
-    public static function execute(int $contextid, string $messages, string $state): array {
+    public static function execute(int $contextid, string $messages, string $state, int $draftitemid = 0): array {
         global $SESSION;
-        $params = self::validate_parameters(self::execute_parameters(), ['contextid' => $contextid, 'messages' => $messages, 'state' => $state]);
+        $params = self::validate_parameters(self::execute_parameters(), ['contextid' => $contextid,
+            'messages' => $messages, 'state' => $state, 'draftitemid' => $draftitemid]);
         $context = \context::instance_by_id($params['contextid']);
         self::validate_context($context);
         require_capability('mod/mpl:addinstance', $context->get_course_context());
@@ -70,7 +73,14 @@ class author_start extends external_api {
                 'content' => \core_text::substr((string)($m['content'] ?? ''), 0, 8000),
             ];
         }
-        $job = (new \mod_mpl\runner())->author_start($clean, is_array($state) ? $state : [],
+        $state = is_array($state) ? $state : [];
+        // Data files: a preview for the AI, the content for running the drafts.
+        $stored = \mod_mpl\manager::draft_files($params['draftitemid']);
+        $state['files'] = array_map(function($f) {
+            return ['name' => $f['name'], 'size' => $f['size'], 'preview' => $f['preview'] ?? '(Binärdatei)'];
+        }, \mod_mpl\manager::files_info($stored, false));
+        $state['files_data'] = \mod_mpl\manager::files_payload($stored);
+        $job = (new \mod_mpl\runner())->author_start($clean, $state,
             strpos(current_language(), 'de') === 0 ? 'de' : 'en');
         if (empty($SESSION->mod_mpl_authorjobs) || !is_array($SESSION->mod_mpl_authorjobs)) {
             $SESSION->mod_mpl_authorjobs = [];

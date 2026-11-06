@@ -63,6 +63,13 @@ class mod_mpl_mod_form extends moodleform_mod {
         $mform->setType('reference', PARAM_RAW);
         $mform->addHelpButton('reference', 'reference', 'mpl');
 
+        // Data files (managed by the JS widget mod_mpl/datafiles in a draft area).
+        $mform->addElement('hidden', 'datafiles');
+        $mform->setType('datafiles', PARAM_INT);
+        $mform->addElement('static', 'datafilesintro', get_string('datafiles', 'mpl'),
+            html_writer::div('', 'mpl-datafiles', ['data-region' => 'mpl-datafiles']));
+        $mform->addHelpButton('datafilesintro', 'datafiles', 'mpl');
+
         // Tests (edited with the visual test builder, stored as JSON).
         $mform->addElement('header', 'testsheader', get_string('testsheader', 'mpl'));
         $mform->setExpanded('testsheader');
@@ -100,6 +107,31 @@ class mod_mpl_mod_form extends moodleform_mod {
         $mform->addElement('date_time_selector', 'cutoffdate', get_string('cutoffdate', 'mpl'), ['optional' => true]);
         $mform->addHelpButton('cutoffdate', 'cutoffdate', 'mpl');
 
+        // Exam mode.
+        $mform->addElement('header', 'examheader', get_string('examheader', 'mpl'));
+        $mform->addElement('static', 'examintro', '', get_string('examintro', 'mpl'));
+        $mform->addElement('advcheckbox', 'exammode', get_string('exammode', 'mpl'));
+        $mform->addHelpButton('exammode', 'exammode', 'mpl');
+        $mform->addElement('select', 'sebmode', get_string('sebmode', 'mpl'), [
+            \mod_mpl\manager::SEB_NONE => get_string('sebmode0', 'mpl'),
+            \mod_mpl\manager::SEB_CONFIG => get_string('sebmode1', 'mpl'),
+            \mod_mpl\manager::SEB_KEYS => get_string('sebmode2', 'mpl'),
+            \mod_mpl\manager::SEB_ANY => get_string('sebmode3', 'mpl'),
+        ]);
+        $mform->addHelpButton('sebmode', 'sebmode', 'mpl');
+        $mform->hideIf('sebmode', 'exammode');
+        $mform->addElement('passwordunmask', 'sebquitpassword', get_string('sebquitpassword', 'mpl'));
+        $mform->setType('sebquitpassword', PARAM_RAW_TRIMMED);
+        $mform->addHelpButton('sebquitpassword', 'sebquitpassword', 'mpl');
+        $mform->hideIf('sebquitpassword', 'exammode');
+        $mform->hideIf('sebquitpassword', 'sebmode', 'neq', \mod_mpl\manager::SEB_CONFIG);
+        $mform->addElement('textarea', 'sebkeys', get_string('sebkeys', 'mpl'), ['rows' => 3, 'cols' => 70,
+            'spellcheck' => 'false', 'class' => 'mpl-tb-mono']);
+        $mform->setType('sebkeys', PARAM_RAW);
+        $mform->addHelpButton('sebkeys', 'sebkeys', 'mpl');
+        $mform->hideIf('sebkeys', 'exammode');
+        $mform->hideIf('sebkeys', 'sebmode', 'neq', \mod_mpl\manager::SEB_KEYS);
+
         // Limits.
         $mform->addElement('header', 'limitsheader', get_string('limitsheader', 'mpl'));
         $mform->addElement('text', 'timeout', get_string('timeout', 'mpl'), ['size' => 5]);
@@ -134,7 +166,9 @@ class mod_mpl_mod_form extends moodleform_mod {
         $this->standard_coursemodule_elements();
         $this->add_action_buttons();
 
-        $PAGE->requires->js_call_amd('mod_mpl/testbuilder', 'init', [$this->context->id, mpl_support_notice()]);
+        $PAGE->requires->js_call_amd('mod_mpl/testbuilder', 'init', [$this->context->id, mpl_support_notice(),
+            ['maxfile' => \mod_mpl\manager::MAX_FILE, 'maxtotal' => \mod_mpl\manager::MAX_FILES_TOTAL,
+                'maxcount' => \mod_mpl\manager::MAX_FILE_COUNT]]);
     }
 
     /**
@@ -146,6 +180,10 @@ class mod_mpl_mod_form extends moodleform_mod {
         if (empty($defaultvalues['tests'])) {
             $defaultvalues['tests'] = json_encode(['version' => 1, 'tests' => []]);
         }
+        $draftitemid = file_get_submitted_draft_itemid('datafiles');
+        file_prepare_draft_area($draftitemid, $this->context ? $this->context->id : null, 'mod_mpl',
+            \mod_mpl\manager::FILEAREA, 0, mpl_data_file_options());
+        $defaultvalues['datafiles'] = $draftitemid;
     }
 
     /**
@@ -165,7 +203,8 @@ class mod_mpl_mod_form extends moodleform_mod {
             $needsref = false;
             foreach ($tests as $t) {
                 $type = $t['type'] ?? '';
-                if ($type === 'plot' || ($type !== 'code' && ($t['expected']['source'] ?? 'reference') === 'reference')) {
+                if ($type === 'plot' || $type === 'turtle' ||
+                        ($type !== 'code' && ($t['expected']['source'] ?? 'reference') === 'reference')) {
                     $needsref = true;
                 }
             }
@@ -181,6 +220,12 @@ class mod_mpl_mod_form extends moodleform_mod {
         }
         if ((int)$data['memory'] < 64 || (int)$data['memory'] > 4096) {
             $errors['memory'] = get_string('memoryrange', 'mpl');
+        }
+        if (!empty($data['exammode']) && (int)($data['sebmode'] ?? 0) === \mod_mpl\manager::SEB_KEYS) {
+            $valid = preg_match_all('/\b[0-9a-fA-F]{64}\b/', (string)($data['sebkeys'] ?? ''));
+            if (!$valid) {
+                $errors['sebkeys'] = get_string('sebkeysinvalid', 'mpl');
+            }
         }
         if ((int)$data['aifree'] < 0 || (int)$data['aifree'] > 50) {
             $errors['aifree'] = get_string('airange', 'mpl');

@@ -62,11 +62,20 @@ foreach ($all as $a) {
 echo html_writer::div(implode(' · ', $links), 'mb-3');
 echo html_writer::div(get_string('submittedon', 'mpl', userdate($submission->timecreated)) . ' · ' .
     get_string('score', 'mpl') . ': ' . format_float($submission->score, 2) . ' / ' . format_float($submission->maxscore, 2) .
-    ' · ' . get_string('grade') . ': ' . $manager->format_grade((float)$submission->fraction), 'mb-3');
+    ' · ' . get_string('gradenoun') . ': ' . $manager->format_grade((float)$submission->fraction), 'mb-3');
 
 $result = json_decode((string)$submission->result, true) ?: [];
 $filtered = \mod_mpl\manager::filter_result($result, $manager->can_grade());
-$config = ['code' => (string)$submission->code, 'result' => $filtered];
+$canfeedback = has_capability('mod/mpl:grade', $context);
+$config = ['code' => (string)$submission->code, 'result' => $filtered, 'cmid' => (int)$cm->id,
+    'submissionid' => (int)$submission->id, 'feedback' => $manager->get_feedback((int)$submission->id),
+    'canfeedback' => $canfeedback];
+if ($submission->timeregraded) {
+    echo html_writer::div(get_string('regradedon', 'mpl', userdate($submission->timeregraded)), 'small text-muted mb-2');
+}
+if ($canfeedback) {
+    echo html_writer::div(get_string('feedbackteacherhint', 'mpl'), 'small text-muted mb-2');
+}
 
 $domid = 'mpl-submission-' . $submission->id;
 echo html_writer::div('', 'mpl-submission-view', ['id' => $domid]);

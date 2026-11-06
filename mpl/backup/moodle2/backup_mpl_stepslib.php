@@ -36,15 +36,30 @@ class backup_mpl_activity_structure_step extends backup_activity_structure_step 
     protected function define_structure() {
         $userinfo = $this->get_setting_value('userinfo');
 
-        $mpl = new backup_nested_element('mpl', ['id'], ['name', 'intro', 'introformat', 'starter', 'reference', 'tests', 'allowrun', 'allowcheck', 'checkgraded', 'maxattempts', 'grademethod', 'duedate', 'cutoffdate', 'timeout', 'memory', 'grade', 'timecreated', 'timemodified', 'aihints', 'aifree', 'aicost', 'aimax', 'authorchat']);
+        $mpl = new backup_nested_element('mpl', ['id'], ['name', 'intro', 'introformat', 'starter', 'reference', 'tests', 'allowrun', 'allowcheck', 'checkgraded', 'maxattempts', 'grademethod', 'duedate', 'cutoffdate', 'timeout', 'memory', 'grade', 'timecreated', 'timemodified', 'aihints', 'aifree', 'aicost', 'aimax', 'authorchat', 'exammode', 'sebmode', 'sebkeys',
+            'sebquitpassword']);
         $submissions = new backup_nested_element('submissions');
         $submission = new backup_nested_element('submission', ['id'], ['userid', 'attempt', 'code', 'score', 'maxscore',
-            'fraction', 'status', 'result', 'timecreated']);
+            'fraction', 'status', 'result', 'testshash', 'timeregraded', 'timecreated']);
+        $feedbacks = new backup_nested_element('feedbacks');
+        $feedback = new backup_nested_element('feedback', ['id'], ['userid', 'line', 'comment', 'authorid', 'timecreated',
+            'timemodified']);
+        $overrides = new backup_nested_element('overrides');
+        $override = new backup_nested_element('override', ['id'], ['userid', 'groupid', 'duedate', 'cutoffdate',
+            'maxattempts', 'timemodified']);
+        $examlogs = new backup_nested_element('examlogs');
+        $examlog = new backup_nested_element('examlog', ['id'], ['userid', 'event', 'detail', 'duration', 'timecreated']);
         $drafts = new backup_nested_element('drafts');
         $draft = new backup_nested_element('draft', ['id'], ['userid', 'code', 'timemodified']);
 
         $mpl->add_child($submissions);
         $submissions->add_child($submission);
+        $submission->add_child($feedbacks);
+        $feedbacks->add_child($feedback);
+        $mpl->add_child($overrides);
+        $overrides->add_child($override);
+        $mpl->add_child($examlogs);
+        $examlogs->add_child($examlog);
         $mpl->add_child($drafts);
         $drafts->add_child($draft);
         $hints = new backup_nested_element('hints');
@@ -58,11 +73,20 @@ class backup_mpl_activity_structure_step extends backup_activity_structure_step 
             $submission->set_source_table('mpl_submissions', ['mplid' => backup::VAR_PARENTID], 'id ASC');
             $draft->set_source_table('mpl_drafts', ['mplid' => backup::VAR_PARENTID], 'id ASC');
             $hint->set_source_table('mpl_hints', ['mplid' => backup::VAR_PARENTID], 'id ASC');
+            $feedback->set_source_table('mpl_feedback', ['submissionid' => backup::VAR_PARENTID], 'id ASC');
+            $override->set_source_table('mpl_overrides', ['mplid' => backup::VAR_PARENTID], 'id ASC');
+            $examlog->set_source_table('mpl_examlog', ['mplid' => backup::VAR_PARENTID], 'id ASC');
         }
+        $feedback->annotate_ids('user', 'userid');
+        $feedback->annotate_ids('user', 'authorid');
+        $override->annotate_ids('user', 'userid');
+        $override->annotate_ids('group', 'groupid');
+        $examlog->annotate_ids('user', 'userid');
         $submission->annotate_ids('user', 'userid');
         $draft->annotate_ids('user', 'userid');
         $hint->annotate_ids('user', 'userid');
         $mpl->annotate_files('mod_mpl', 'intro', null);
+        $mpl->annotate_files('mod_mpl', \mod_mpl\manager::FILEAREA, null);
 
         return $this->prepare_activity_structure($mpl);
     }

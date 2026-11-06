@@ -48,11 +48,31 @@ $PAGE->set_heading(format_string($manager->course->fullname));
 $PAGE->add_body_class('mod-mpl-workspace-page');
 $PAGE->activityheader->set_attrs(['description' => format_module_intro('mpl', $mpl, $cm->id)]);
 
+// Safe Exam Browser: students only get in with the right SEB configuration.
+$exam = !empty($mpl->exammode);
+$insb = false;
+if ($manager->seb_required()) {
+    if (!$manager->seb_check_request()) {
+        if (\mod_mpl\seb::is_seb_useragent()) {
+            $manager->log_exam_event((int)$USER->id, 'sebfail', 'header');
+        }
+        echo $OUTPUT->header();
+        echo html_writer::div(mpl_seb_gate($manager), 'mpl-seb-gate', ['id' => 'mpl-seb-gate']);
+        $PAGE->requires->js_call_amd('mod_mpl/exam', 'sebCheck', [(int)$cm->id]);
+        echo $OUTPUT->footer();
+        exit;
+    }
+    $insb = true;
+    // Like the quiz: no navigation to other parts of Moodle inside SEB.
+    $PAGE->set_pagelayout('secure');
+}
+
 $isgrader = $manager->can_grade();
 $cansubmit = $manager->can_submit();
 $canrun = has_capability('mod/mpl:run', $context);
 $runner = new \mod_mpl\runner();
 
+$feedbackcounts = $manager->feedback_counts((int)$USER->id);
 $attempts = [];
 foreach ($DB->get_records('mpl_submissions', ['mplid' => $mpl->id, 'userid' => $USER->id], 'attempt DESC',
         'id, attempt, fraction, score, maxscore, timecreated') as $s) {
@@ -61,7 +81,14 @@ foreach ($DB->get_records('mpl_submissions', ['mplid' => $mpl->id, 'userid' => $
         'attempt' => (int)$s->attempt,
         'grade' => $manager->format_grade((float)$s->fraction),
         'time' => userdate($s->timecreated, get_string('strftimedatetimeshort', 'langconfig')),
+        'feedback' => (int)($feedbackcounts[$s->id] ?? 0),
+        'url' => (new moodle_url('/mod/mpl/submission.php', ['id' => $s->id]))->out(false),
     ];
+}
+$effective = $manager->effective((int)$USER->id);
+$files = \mod_mpl\manager::files_info($manager->stored_files());
+if ($exam && !$isgrader && $canrun) {
+    $manager->log_exam_event((int)$USER->id, 'start', $insb ? 'SEB' : 'Browser');
 }
 
 $config = [
@@ -74,13 +101,17 @@ $config = [
     'cansubmit' => $cansubmit,
     'submitblocker' => $cansubmit ? $manager->submit_blocker($USER->id) : null,
     'attemptsleft' => $manager->attempts_left($USER->id),
-    'maxattempts' => (int)$mpl->maxattempts,
+    'maxattempts' => (int)$effective->maxattempts,
     'currentgrade' => $manager->current_grade_text($USER->id),
     'attempts' => $attempts,
     'isgrader' => $isgrader,
     'testcount' => count($manager->get_tests()),
     'ai' => $canrun ? $manager->hint_state($USER->id) : ['enabled' => false],
-    'hints' => $canrun && !empty($mpl->aihints) ? $manager->get_hints($USER->id) : [],
+    'hints' => $canrun && $manager->hints_enabled() ? $manager->get_hints($USER->id) : [],
+    'files' => $files,
+    'exam' => $exam && !$isgrader,
+    'sebquiturl' => $insb && (int)$mpl->sebmode === \mod_mpl\manager::SEB_CONFIG
+        ? (new moodle_url('/mod/mpl/view.php', ['id' => $cm->id, 'sebquit' => 1]))->out(false) : null,
 ];
 
 echo $OUTPUT->header();
@@ -91,29 +122,61 @@ if (!$runner->is_configured()) {
 
 if ($isgrader) {
     $count = $DB->count_records_select('mpl_submissions', 'mplid = ?', [$mpl->id], 'COUNT(DISTINCT userid)');
-    echo html_writer::div(
-        html_writer::link(new moodle_url('/mod/mpl/submissions.php', ['id' => $cm->id]),
-            get_string('viewsubmissions', 'mpl', $count), ['class' => 'btn btn-secondary']) .
-        html_writer::span(get_string('teacherhint', 'mpl'), 'text-muted ms-3 ml-3 small'),
+    $buttons = html_writer::link(new moodle_url('/mod/mpl/submissions.php', ['id' => $cm->id]),
+        get_string($exam ? 'exammonitor' : 'viewsubmissions', 'mpl', $count), ['class' => 'btn btn-secondary me-2 mr-2']);
+    if (has_capability('mod/mpl:manageoverrides', $context)) {
+        $overrides = $DB->count_records('mpl_overrides', ['mplid' => $mpl->id]);
+        $buttons .= html_writer::link(new moodle_url('/mod/mpl/overrides.php', ['id' => $cm->id]),
+            get_string('overridesbutton', 'mpl', $overrides), ['class' => 'btn btn-outline-secondary me-2 mr-2']);
+    }
+    echo html_writer::div($buttons . html_writer::span(get_string('teacherhint', 'mpl'), 'text-muted ms-1 ml-1 small'),
         'mb-2 d-flex align-items-center flex-wrap');
+    if (has_capability('mod/mpl:regrade', $context) && ($outdated = $manager->outdated_count())) {
+        echo $OUTPUT->notification(get_string('regradeneeded', 'mpl', $outdated) . ' ' .
+            html_writer::link(new moodle_url('/mod/mpl/regrade.php', ['id' => $cm->id]), get_string('regrade', 'mpl'),
+                ['class' => 'btn btn-sm btn-warning ms-2 ml-2']), 'warning');
+    }
+    if ($exam) {
+        echo mpl_exam_teacher_panel($manager);
+    }
     echo html_writer::div(mpl_support_notice(), 'mb-3');
+}
+
+if ($exam && !$isgrader) {
+    echo html_writer::div(get_string('examstudentnotice', 'mpl'), 'alert alert-warning py-2 small mpl-exam-notice');
+}
+if (!$isgrader && ($latest = $DB->get_record_sql('SELECT f.submissionid, s.attempt, MAX(f.timemodified) AS t
+                                                     FROM {mpl_feedback} f
+                                                     JOIN {mpl_submissions} s ON s.id = f.submissionid
+                                                    WHERE f.mplid = ? AND f.userid = ?
+                                                 GROUP BY f.submissionid, s.attempt
+                                                 ORDER BY MAX(f.timemodified) DESC', [$mpl->id, $USER->id], IGNORE_MULTIPLE))) {
+    echo $OUTPUT->notification(get_string('feedbackavailable', 'mpl', (object)['attempt' => $latest->attempt]) . ' ' .
+        html_writer::link(new moodle_url('/mod/mpl/submission.php', ['id' => $latest->submissionid]),
+            get_string('feedbackshow', 'mpl'), ['class' => 'btn btn-sm btn-primary ms-2 ml-2']), 'info');
 }
 
 // Status line for students.
 $info = [];
 if ($cansubmit) {
-    if ($mpl->maxattempts) {
-        $info[] = get_string('attemptsinfo', 'mpl', (object)['used' => count($attempts), 'max' => $mpl->maxattempts]);
+    $individual = $effective->override ? ' ' . get_string('individual', 'mpl') : '';
+    if ($effective->maxattempts) {
+        $info[] = get_string('attemptsinfo', 'mpl', (object)['used' => count($attempts), 'max' => $effective->maxattempts]) .
+            $individual;
     } else {
         $info[] = get_string('attemptsunlimited', 'mpl', count($attempts));
     }
     $info[] = get_string('grademethodinfo', 'mpl', $mpl->grademethod == MPL_GRADE_LAST
         ? get_string('grademethodlast', 'mpl') : get_string('grademethodbest', 'mpl'));
-    if ($mpl->cutoffdate) {
-        $info[] = get_string('cutoffinfo', 'mpl', userdate($mpl->cutoffdate));
+    if ($effective->duedate && $effective->duedate != $mpl->duedate) {
+        $info[] = get_string('dueinfo', 'mpl', userdate($effective->duedate)) . $individual;
+    }
+    if ($effective->cutoffdate) {
+        $info[] = get_string('cutoffinfo', 'mpl', userdate($effective->cutoffdate)) .
+            ($effective->cutoffdate != $mpl->cutoffdate ? $individual : '');
     }
 }
-if (!empty($mpl->aihints) && $canrun && !$isgrader) {
+if ($manager->hints_enabled() && $canrun && !$isgrader) {
     $info[] = get_string('aistatusline', 'mpl', (object)['free' => (int)$mpl->aifree,
         'cost' => format_float($mpl->aicost, 0), 'max' => format_float($mpl->aimax, 0)]);
 }

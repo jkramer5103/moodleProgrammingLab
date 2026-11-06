@@ -118,15 +118,25 @@ class runner {
      * @param string $reference
      * @param array $tests
      * @param array $limits
+     * @param array $files data files [{name, data (base64)}]
+     * @param int|null $seed random seed (to reproduce an earlier evaluation)
      * @return array result
      */
-    public function evaluate(string $code, string $reference, array $tests, array $limits): array {
-        return $this->request('POST', '/v1/evaluate', [
+    public function evaluate(string $code, string $reference, array $tests, array $limits, array $files = [],
+            ?int $seed = null): array {
+        $body = [
             'code' => $code,
             'reference' => $reference,
             'tests' => $tests,
             'limits' => $limits,
-        ], 330);
+        ];
+        if ($files) {
+            $body['files'] = $files;
+        }
+        if ($seed !== null) {
+            $body['seed'] = $seed;
+        }
+        return $this->request('POST', '/v1/evaluate', $body, 330);
     }
 
     /**
@@ -135,11 +145,15 @@ class runner {
      * @param string $code
      * @param int $owner user id
      * @param array $limits
+     * @param array $files data files [{name, data (base64)}]
      * @return string session id
      */
-    public function session_start(string $code, int $owner, array $limits): string {
-        $data = $this->request('POST', '/v1/sessions', ['code' => $code, 'owner' => (string)$owner,
-            'limits' => $limits], 60);
+    public function session_start(string $code, int $owner, array $limits, array $files = []): string {
+        $body = ['code' => $code, 'owner' => (string)$owner, 'limits' => $limits];
+        if ($files) {
+            $body['files'] = $files;
+        }
+        $data = $this->request('POST', '/v1/sessions', $body, 60);
         return (string)$data['id'];
     }
 

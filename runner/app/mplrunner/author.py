@@ -13,6 +13,7 @@ Runs as a background job because it can take a few minutes.
 """
 
 import asyncio
+import base64
 import json
 import logging
 import os
@@ -33,13 +34,15 @@ SCHEMA = r"""
 Ein Test ist ein Objekt. Gemeinsame Felder:
 - "id": kurz, eindeutig, nur a-z0-9_ (z. B. "beispiel", "zufall")
 - "name": kurzer, für Schüler verständlicher Name
-- "type": "io" | "function" | "class" | "file" | "plot" | "code"
-- "points": Punkte (Zahl > 0; bei "plot" ignoriert – dort zählen die Kriterien)
+- "type": "io" | "function" | "class" | "file" | "plot" | "turtle" | "code"
+- "points": Punkte (Zahl > 0; bei "plot" und "turtle" ignoriert – dort zählen die Kriterien)
 - "visibility": "visible" (Eingabe, erwartet, bekommen sichtbar) | "nameonly" (nur bestanden ja/nein) | "hidden" (nur in der Gesamtsumme bei der Abgabe)
 - "show_expected": "auto" (Standard: erwartetes Ergebnis nur bei Zufallseingaben zeigen) | "always" | "never"
 - "required": true = Pflichttest (nicht bestanden → 0 Punkte für die ganze Aufgabe). Sparsam einsetzen, v. a. für Code-Prüfungen gegen Hartcodieren.
 - "repeat": Anzahl Durchläufe, nur sinnvoll bei Zufallseingaben (3–10)
 - "timeout": optional, Sekunden
+- "files": optional, nur für diesen Test: [{"name": "daten.csv", "content": "Text"}] ersetzt die gleichnamige Datei der Aufgabe.
+  Ideal gegen Hartcodieren bei Aufgaben, die eine Datei auswerten: ein versteckter Test mit anderen Daten.
 
 ### "io" – Konsolenprogramm (input()/print())
 - "inputs": Liste von Werten; jeder Wert wird zu einer Zeile für input(). Feste Werte sind roher Text.
@@ -71,6 +74,17 @@ Vergleicht das Diagramm der Schüler mit dem der Musterlösung (Musterlösung Pf
   Kriterien: "figure" (Diagramm erzeugt), "kind" (Typ: Linie/Balken/Streu/Kreis), "count" (Anzahl Achsen/Reihen), "data" (Datenwerte),
   "title", "xlabel", "ylabel", "legend" ("present" = irgendein Text, "equal" = gleicher Text)
 - Die Musterlösung muss plt.show() aufrufen oder einfach das Diagramm erzeugen.
+
+### "turtle" – Turtle-Grafik (import turtle)
+Vergleicht die Zeichnung der Schüler mit der der Musterlösung (Musterlösung Pflicht). Es gibt kein Fenster; die Zeichnung
+wird als Bild angezeigt. done()/mainloop()/exitonclick() sind erlaubt, aber nicht nötig. Reihenfolge und Richtung der Striche
+sind egal, verglichen wird, was am Ende zu sehen ist.
+- "turtle": {"tolerance": 3, "placement": "exact"|"translate"|"scale", "criteria": {Kriterium: {"enabled": bool, "points": Zahl}}}
+  "placement": "exact" = gleiche Koordinaten (Turtle startet bei 0,0 nach rechts), "translate" = Lage egal,
+  "scale" = Lage und Größe egal (Toleranz dann in % der Größe). Ist im Aufgabentext keine Größe/Lage festgelegt, nimm "translate" oder "scale".
+  Kriterien: "drawing" (etwas gezeichnet), "lines" (Linien stimmen überein), "colors" (Linienfarben), "fills" (gefüllte Flächen: Lage,
+  Größe, Farbe), "texts" (mit write() geschriebene Texte). Fordere Farben/Füllungen/Texte nur, wenn der Aufgabentext sie genau nennt.
+- "inputs" wie bei "io" (z. B. zufällige Anzahl Ecken über input()).
 
 ### "code" – Quelltext statisch prüfen (ohne Ausführung)
 - "rules": [{"type": …, "value": …}] mit
@@ -106,9 +120,18 @@ Moodle-Plugin „Programming Lab“ für Schulen (Klasse 7–13). Viele Lehrkrä
 triff sinnvolle Entscheidungen selbst und erkläre kurz, was du gemacht hast.
 
 Rahmen:
-- Python 3.12. Verfügbar: Standardbibliothek, numpy, matplotlib, pandas. KEIN Internet, keine Dateien außer denen, die das Programm selbst schreibt.
-- Eingaben nur über input() (Tests liefern sie), Ausgaben über print(), Diagramme über matplotlib.
-- Ein Schülerprogramm ist EINE Datei.
+- Python 3.12. Verfügbar: Standardbibliothek, numpy, matplotlib, pandas, turtle (ohne Fenster, die Zeichnung wird als Bild gezeigt). KEIN Internet.
+- Eingaben über input() (Tests liefern sie), Ausgaben über print(), Diagramme über matplotlib, Grafik über turtle.
+- Ein Schülerprogramm ist EINE Datei. Es kann Dateien der Aufgabe lesen (liegen im selben Ordner, z. B. open("daten.csv")).
+
+Dateien der Aufgabe (z. B. CSV/TXT zum Auswerten):
+- Vorhandene Dateien stehen im aktuellen Stand unter "files" (Name, Größe, Anfang des Inhalts). Schüler sehen und laden sie herunter.
+- Du kannst kleine Textdateien selbst erstellen oder ersetzen: "task": {"files": [{"name": "wetter.csv", "content": "…"}]}
+  (höchstens 3 Dateien, je höchstens 50 KB, realistische Beispieldaten). Nur angeben, was neu ist oder sich ändert.
+- Braucht die Aufgabe Daten, die nur die Lehrkraft hat (z. B. „unsere Messwerte“, „die Datei aus dem Unterricht“, ein Bild),
+  oder sagt die Lehrkraft, dass sie eine Datei hochladen will, und sie fehlt noch: Bitte um den Upload statt Daten zu erfinden:
+  "request_upload": {"name": "vorgeschlagener Dateiname", "description": "kurz, was die Datei enthalten soll"} und lass "task" weg.
+  Nach dem Upload bekommst du die Datei im aktuellen Stand und erstellst dann die Aufgabe.
 
 Gute Aufgaben (orientiere dich an den Beispielen):
 - Aufgabentext ("intro") als einfaches HTML (<p>, <code>, <ul><li>, <strong>, <em>), klar, altersgerecht, in der Sprache der Lehrkraft (meist Deutsch, du-Form).
@@ -138,17 +161,19 @@ Einstellungen der Aktivität: Nur wenn die Lehrkraft etwas dazu sagt (z. B. „K
 „Schüler sollen nicht ausprobieren können“), setze "settings" mit den betroffenen Feldern:
   "allowrun" (bool, freies Ausführen in der Konsole), "allowcheck" (bool, unbewertetes Prüfen), "checkgraded" (bool, jedes Prüfen zählt als Abgabe),
   "maxattempts" (0 = unbegrenzt), "grademethod" (0 = bester Versuch, 1 = letzter), "timeout" (Sekunden 1–120), "memory" (MB 64–1024),
-  "aihints" (bool, KI-Hinweise für Schüler), "aifree" (kostenlose Hinweise), "aicost" (% Abzug je weiterem Hinweis), "aimax" (max. % Abzug).
-  Für eine Klassenarbeit z. B.: aihints false, allowcheck true oder false je nach Wunsch, maxattempts 1. Sonst "settings" weglassen.
+  "aihints" (bool, KI-Hinweise für Schüler), "aifree" (kostenlose Hinweise), "aicost" (% Abzug je weiterem Hinweis), "aimax" (max. % Abzug),
+  "exammode" (bool, Prüfungsmodus: keine KI-Hilfe, Einfügen von außen gesperrt, Fensterwechsel werden protokolliert).
+  Für eine Klassenarbeit z. B.: exammode true, aihints false, allowcheck true oder false je nach Wunsch, maxattempts 1. Sonst "settings" weglassen.
 
 Antworte AUSSCHLIESSLICH mit einem JSON-Objekt:
 {
   "message": "2–5 Sätze an die Lehrkraft in einfacher Sprache: was die Aufgabe jetzt enthält bzw. was du geändert hast, welche Annahmen du getroffen hast, was sie noch anpassen könnte",
-  "task": {"name": "…", "intro": "<p>…</p>", "starter": "…", "reference": "…", "tests": [ … ], "settings": {…optional…}},
+  "task": {"name": "…", "intro": "<p>…</p>", "starter": "…", "reference": "…", "tests": [ … ], "settings": {…optional…}, "files": [ …optional… ]},
   "wrong_solutions": [{"description": "ein kurzer, klarer Satz: der typische Schülerfehler", "code": "vollständiger fehlerhafter Code"}, …]
 }
 "wrong_solutions": 2–3 realistische falsche Schülerlösungen (z. B. Randfall vergessen, falscher Vergleich, hart codiert). Sie dienen nur
 zur automatischen Prüfung, dass deine Tests Fehler erkennen.
+Bei "request_upload" nur {"message": "…", "request_upload": {…}} (ohne "task" und "wrong_solutions"); "message" erklärt kurz, welche Datei du brauchst.
 "message" sieht nur die Lehrkraft: KEINE Fachbegriffe aus diesem Format (JSON, Felder wie required/show_expected/settings, Strings),
 nichts über die automatische Prüfung, Korrekturrunden oder deine falschen Lösungen. Sprich von „Tests“, „Pflichttest“,
 „versteckter Test“, „Einstellungen“ wie im Formular.
@@ -219,8 +244,21 @@ def _clean_task(task):
         out["tests"].append(t)
     if not out["tests"]:
         raise ValueError("Die Aufgabe hat keine Tests")
+    files = []
+    for f in (task.get("files") or [])[:MAX_AI_FILES]:
+        if not isinstance(f, dict):
+            continue
+        name = re.sub(r"[^A-Za-z0-9_.-]", "_", str(f.get("name") or "").strip())[:100].lstrip(".")
+        content = str(f.get("content") or "")
+        if not name or name == "main.py":
+            continue
+        if len(content.encode("utf-8")) > MAX_AI_FILE_BYTES:
+            raise ValueError("Die Datei '%s' ist zu groß (höchstens %d KB)" % (name, MAX_AI_FILE_BYTES // 1024))
+        files.append({"name": name, "content": content})
+    if files:
+        out["files"] = files
     settings_in = task.get("settings") if isinstance(task.get("settings"), dict) else {}
-    limits = {"allowrun": (bool,), "allowcheck": (bool,), "checkgraded": (bool,), "aihints": (bool,),
+    limits = {"allowrun": (bool,), "allowcheck": (bool,), "checkgraded": (bool,), "aihints": (bool,), "exammode": (bool,),
               "maxattempts": (int, 0, 50), "grademethod": (int, 0, 1), "timeout": (int, 1, 120),
               "memory": (int, 64, 1024), "aifree": (int, 0, 50), "aicost": (float, 0, 100), "aimax": (float, 0, 100)}
     clean = {}
@@ -241,6 +279,24 @@ def _clean_task(task):
 
 
 RANDOM_KINDS = {"int", "float", "str", "choice", "list", "bool"}
+MAX_AI_FILES = 3
+MAX_AI_FILE_BYTES = 50 * 1024
+
+
+def _clean_upload(data):
+    req = data.get("request_upload")
+    if not isinstance(req, dict):
+        return None
+    name = re.sub(r"[^A-Za-z0-9_.-]", "_", str(req.get("name") or "").strip())[:100].lstrip(".")
+    return {"name": name, "description": str(req.get("description") or "")[:500]}
+
+
+def _task_files(state_files, task):
+    """Files the draft runs with: the current files of the form plus the ones the AI creates."""
+    files = {f["name"]: f for f in grader.clean_files(state_files)}
+    for f in task.get("files") or []:
+        files[f["name"]] = {"name": f["name"], "data": base64.b64encode(f["content"].encode("utf-8")).decode("ascii")}
+    return list(files.values())
 
 
 def _uses_random(node):
@@ -254,13 +310,14 @@ def _uses_random(node):
     return False
 
 
-async def _check(task, wrong_solutions, limits):
+async def _check(task, wrong_solutions, limits, files=None):
     """Run reference, starter and wrong solutions against the tests."""
     problems = []
+    files = files or []
     report = {"reference": None, "max": None, "wrong": [], "starter": None,
               "tests": len(task["tests"]), "random": sum(1 for t in task["tests"] if _uses_random(t))}
     ref = await grader.evaluate({"code": task["reference"], "reference": task["reference"], "tests": task["tests"],
-                                 "limits": limits}, POOL[0])
+                                 "limits": limits, "files": files}, POOL[0])
     report["reference"], report["max"] = ref["score"], ref["max_score"]
     for t in ref["tests"]:
         if t.get("config_error"):
@@ -291,7 +348,7 @@ async def _check(task, wrong_solutions, limits):
                         "Testart, auch bei Diagrammen. Feste Beispieltests dürfen bleiben.")
     if task["starter"].strip():
         st = await grader.evaluate({"code": task["starter"], "reference": task["reference"], "tests": task["tests"],
-                                    "limits": limits}, POOL[0])
+                                    "limits": limits, "files": files}, POOL[0])
         report["starter"] = st["score"]
         if st["max_score"] and st["score"] >= st["max_score"]:
             problems.append("Schon der Startcode bekommt die volle Punktzahl – er verrät zu viel oder die Tests sind zu schwach")
@@ -300,7 +357,7 @@ async def _check(task, wrong_solutions, limits):
         if not code.strip():
             continue
         r = await grader.evaluate({"code": code, "reference": task["reference"], "tests": task["tests"],
-                                   "limits": limits}, POOL[0])
+                                   "limits": limits, "files": files}, POOL[0])
         report["wrong"].append({"description": str(w.get("description") or "")[:300], "score": r["score"],
                                 "max": r["max_score"]})
         if r["max_score"] and r["score"] >= r["max_score"]:
@@ -319,16 +376,19 @@ def _build_messages(req):
     lang = req.get("lang", "de")
     messages = [{"role": "system", "content": SYSTEM + "\n\n" + EXAMPLE_TEXT}]
     state = req.get("state") or {}
-    has_state = bool((state.get("reference") or "").strip() or state.get("tests"))
+    has_state = bool((state.get("reference") or "").strip() or state.get("tests") or state.get("files"))
+    file_info = [{"name": f.get("name"), "size": f.get("size"), "preview": str(f.get("preview") or "")[:3000]}
+                 for f in (state.get("files") or [])[:20] if isinstance(f, dict)]
     for i, m in enumerate(req.get("messages") or []):
         role = "user" if m.get("role") == "teacher" else "assistant"
         content = str(m.get("content") or "")[:8000]
         if role == "user" and i == len(req["messages"]) - 1:
             prefix = ""
             if has_state:
+                current = {k: state.get(k) for k in ("name", "intro", "starter", "reference", "tests", "settings")}
+                current["files"] = file_info
                 prefix = ("## Aktueller Stand der Aufgabe (von der Lehrkraft evtl. von Hand geändert)\n```json\n" +
-                          json.dumps({k: state.get(k) for k in ("name", "intro", "starter", "reference", "tests", "settings")},
-                                     ensure_ascii=False)[:30000] + "\n```\n\n## Wunsch der Lehrkraft\n")
+                          json.dumps(current, ensure_ascii=False)[:40000] + "\n```\n\n## Wunsch der Lehrkraft\n")
             content = prefix + content
             if lang != "de":
                 content += "\n\n(Write the task in the teacher's language.)"
@@ -353,8 +413,14 @@ async def _run(job, req):
             usage.append(meta)
             try:
                 data = _extract_json(text)
+                upload = _clean_upload(data)
+                if upload and not data.get("task"):
+                    draft = {"message": str(data.get("message") or ""), "request_upload": upload}
+                    report, problems = None, []
+                    break
                 task = _clean_task(data.get("task"))
-            except (ValueError, json.JSONDecodeError) as exc:
+                files = _task_files((req.get("state") or {}).get("files_data"), task)
+            except (ValueError, json.JSONDecodeError, grader.ConfigError) as exc:
                 problems = ["Antwort war kein gültiges JSON im verlangten Format (%s)" % exc]
                 messages += [{"role": "assistant", "content": text[:20000]},
                              {"role": "user", "content": "Fehler: " + problems[0] + ". Antworte nur mit dem JSON-Objekt."}]
@@ -364,7 +430,7 @@ async def _run(job, req):
             draft = {"message": message, "task": task,
                      "wrong_solutions": data.get("wrong_solutions") or []}
             job.step("Musterlösung und Tests werden ausgeführt …")
-            problems, report = await _check(task, draft["wrong_solutions"], limits)
+            problems, report = await _check(task, draft["wrong_solutions"], limits, files)
             if not problems:
                 break
             job.step("Gefundene Probleme: " + "; ".join(problems)[:300])

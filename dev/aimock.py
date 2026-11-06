@@ -12,7 +12,23 @@ class Handler(BaseHTTPRequestHandler):
             fh.write(json.dumps({"auth": self.headers.get("Authorization"), "body": body}) + "\n")
         n = sum(1 for _ in open(LOG))
         content = "Mock-Hinweis %d: Schau dir an, was `range` genau zurückgibt." % n
-        if "JSON-Objekt" in body["messages"][0]["content"]:
+        last = body["messages"][-1]["content"] if body["messages"] else ""
+        if "JSON-Objekt" in body["messages"][0]["content"] and "MOCK-UPLOAD" in last:
+            content = json.dumps({"message": "Mock: Bitte lade die Messwerte hoch.",
+                                  "request_upload": {"name": "messwerte.csv", "description": "Spalten zeit;wert"}})
+        elif "JSON-Objekt" in body["messages"][0]["content"] and "MOCK-FILE" in last:
+            content = json.dumps({
+                "message": "Mock: Aufgabe mit Datei erstellt.",
+                "task": {"name": "Mock-Aufgabe: Summe aus Datei", "intro": "<p>Summiere die Werte in werte.txt.</p>",
+                         "starter": "", "reference": "print(sum(int(z) for z in open('werte.txt')))\n",
+                         "files": [{"name": "werte.txt", "content": "1\n2\n3\n"}],
+                         "tests": [{"id": "s", "name": "Summe", "type": "io", "points": 2,
+                                    "expected": {"source": "reference"}},
+                                   {"id": "s2", "name": "Andere Werte", "type": "io", "points": 1, "visibility": "hidden",
+                                    "expected": {"source": "reference"},
+                                    "files": [{"name": "werte.txt", "content": "10\n20\n"}]}]},
+                "wrong_solutions": [{"description": "hart codiert", "code": "print(6)\n"}]})
+        elif "JSON-Objekt" in body["messages"][0]["content"]:
             content = json.dumps({
                 "message": "Mock: Aufgabe erstellt.",
                 "task": {"name": "Mock-Aufgabe: Quadrat", "intro": "<p>Schreibe <code>quadrat(x)</code>.</p>",

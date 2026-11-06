@@ -109,7 +109,7 @@ class SessionManager:
     def start_gc(self):
         self.gc_task = asyncio.get_running_loop().create_task(self._gc())
 
-    async def create(self, code, owner, timeout=None, memory=None):
+    async def create(self, code, owner, timeout=None, memory=None, files=None):
         active = [s for s in self.sessions.values() if not s.done]
         if len(active) >= settings.max_sessions:
             raise SandboxError("Zu viele gleichzeitige Ausführungen – bitte gleich nochmal versuchen")
@@ -118,8 +118,10 @@ class SessionManager:
             old.finish("Durch neuen Lauf ersetzt")
         timeout = max(1.0, min(float(timeout or settings.default_timeout), settings.max_timeout))
         sandbox = await self.pool.acquire(memory)
-        await sandbox.send_job({"mode": "interactive", "code": code,
-                                "limits": {"timeout": timeout}}, close_stdin=False)
+        job = {"mode": "interactive", "code": code, "limits": {"timeout": timeout}}
+        if files:
+            job["files"] = files
+        await sandbox.send_job(job, close_stdin=False)
         session = Session(sandbox, owner)
         session.reader = asyncio.get_running_loop().create_task(session.read_loop())
         self.sessions[session.id] = session

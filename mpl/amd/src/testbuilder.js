@@ -30,6 +30,7 @@ import {fromTextarea, createEditor} from 'mod_mpl/codemirror';
 import {h, clear, loadStrings, fmt, num, icon} from 'mod_mpl/dom';
 import {render as renderResult} from 'mod_mpl/results';
 import {init as initAuthor} from 'mod_mpl/author';
+import {init as initDataFiles} from 'mod_mpl/datafiles';
 import {getInstanceForElementId} from 'editor_tiny/editor';
 
 const KEYS = [
@@ -61,9 +62,13 @@ const KEYS = [
     'rule_imports', 'rule_not_imports', 'rule_max_numbers', 'rule_max_lines', 'rule_contains', 'rule_not_contains',
     'construct_for', 'construct_while', 'construct_loop', 'construct_if', 'construct_def', 'construct_class',
     'construct_comprehension', 'construct_recursion', 'construct_return', 'construct_try', 'tb_rules_points',
+    'type_turtle', 'tb_typehelp_turtle', 'crit_drawing', 'crit_lines', 'crit_colors', 'crit_fills', 'crit_texts',
+    'tb_turtlecriteria', 'tb_turtle_help', 'tb_turtletolerance', 'tb_turtletolerance_help', 'tb_placement', 'place_exact',
+    'place_translate', 'place_scale', 'tb_testfiles', 'tb_testfiles_help', 'tb_addtestfile', 'tb_testfilename',
+    'tb_testfilecontent',
 ];
 
-const TYPES = ['io', 'function', 'class', 'file', 'plot', 'code'];
+const TYPES = ['io', 'function', 'class', 'file', 'plot', 'turtle', 'code'];
 const RULES = ['uses', 'not_uses', 'max_numbers', 'calls', 'not_calls', 'imports', 'not_imports', 'max_lines',
     'contains', 'not_contains'];
 const CONSTRUCTS = ['loop', 'for', 'while', 'if', 'def', 'class', 'comprehension', 'recursion', 'return', 'try'];
@@ -75,6 +80,7 @@ const VALUE_CMP = ['exact', 'numeric', 'unordered', 'string', 'regex'];
 const PROPS = ['nonempty', 'type', 'sorted', 'sorted_desc', 'unique', 'length', 'range', 'contains', 'not_contains',
     'regex'];
 const CRITERIA = ['figure', 'kind', 'count', 'data', 'title', 'xlabel', 'ylabel', 'legend'];
+const TURTLE_CRITERIA = ['drawing', 'lines', 'colors', 'fills', 'texts'];
 const PY_TYPES = ['int', 'float', 'number', 'str', 'bool', 'list', 'tuple', 'dict', 'set', 'none'];
 
 const uid = () => 't' + Math.random().toString(36).slice(2, 9);
@@ -88,6 +94,14 @@ const defaultCriteria = () => ({
     xlabel: {enabled: true, points: 0.5, mode: 'present'},
     ylabel: {enabled: true, points: 0.5, mode: 'present'},
     legend: {enabled: false, points: 1, mode: 'present'},
+});
+
+const defaultTurtleCriteria = () => ({
+    drawing: {enabled: true, points: 1},
+    lines: {enabled: true, points: 3},
+    colors: {enabled: true, points: 1},
+    fills: {enabled: false, points: 1},
+    texts: {enabled: false, points: 1},
 });
 
 const newTest = (type, n, S) => {
@@ -108,6 +122,12 @@ const newTest = (type, n, S) => {
     if (type === 'plot') {
         t.plot = {tolerance: 0.01, criteria: defaultCriteria()};
     }
+    if (type === 'turtle') {
+        t.turtle = {tolerance: 3, placement: 'exact', criteria: defaultTurtleCriteria()};
+        delete t.expected;
+        delete t.compare;
+        delete t.properties;
+    }
     if (type === 'code') {
         t.rules = [{type: 'uses', value: 'loop'}, {type: 'max_numbers', value: 10}];
         delete t.inputs;
@@ -126,7 +146,9 @@ const testHasRandom = (t) => {
     return specs.some(isRandom);
 };
 
-const plotPoints = (t) => Object.values((t.plot && t.plot.criteria) || {})
+const isDrawing = (t) => t.type === 'plot' || t.type === 'turtle';
+
+const plotPoints = (t) => Object.values(((t.type === 'turtle' ? t.turtle : t.plot) || {}).criteria || {})
     .filter((c) => c && c.enabled !== false).reduce((s, c) => s + (Number(c.points) || 0), 0);
 
 class Builder {
@@ -157,7 +179,7 @@ class Builder {
     }
 
     total() {
-        return this.tests.reduce((s, t) => s + (t.type === 'plot' ? plotPoints(t) : (Number(t.points) || 0)), 0);
+        return this.tests.reduce((s, t) => s + (isDrawing(t) ? plotPoints(t) : (Number(t.points) || 0)), 0);
     }
 
     render() {
@@ -378,7 +400,7 @@ class Builder {
             h('span.mpl-tb-num-label', {text: (i + 1) + '.'}),
             this.text(t, 'name', {class: 'mpl-tb-name', placeholder: S.tb_name, 'aria-label': S.tb_name}),
             h('span.badge.bg-light.text-dark.badge-light', {text: S['type_' + t.type]}),
-            t.type === 'plot'
+            isDrawing(t)
                 ? h('span.small.text-muted', {text: fmt(S.tb_points_plot, num(plotPoints(t)))})
                 : h('span.mpl-tb-inline', null, [h('span.small', {text: S.tb_points}),
                     this.number(t, 'points', {min: 0, 'aria-label': S.tb_points})]),
@@ -436,8 +458,8 @@ class Builder {
         }
 
         // Inputs.
-        const inputLabel = {io: S.tb_inputs_io, file: S.tb_inputs_io, plot: S.tb_inputs_io, function: S.tb_inputs_function,
-            class: S.tb_inputs_class}[t.type];
+        const inputLabel = {io: S.tb_inputs_io, file: S.tb_inputs_io, plot: S.tb_inputs_io, turtle: S.tb_inputs_io,
+            function: S.tb_inputs_function, class: S.tb_inputs_class}[t.type];
         body.appendChild(h('div.mpl-tb-section', null, [h('div.mpl-tb-section-title', {text: inputLabel}),
             this.valueList(t.inputs, literal, literal ? S.tb_addarg : S.tb_addinput, 'input')]));
 
@@ -477,14 +499,17 @@ class Builder {
 
         if (t.type === 'plot') {
             body.appendChild(this.plotSection(t));
+        } else if (t.type === 'turtle') {
+            body.appendChild(this.turtleSection(t));
         } else {
             body.appendChild(this.expectedSection(t, literal));
             body.appendChild(this.propertySection(t, literal));
         }
 
         // Advanced.
-        const adv = h('details.mpl-tb-advanced', {open: !!(t.check || t.timeout)}, [h('summary', {text: S.tb_advanced})]);
-        if (t.type !== 'plot') {
+        const adv = h('details.mpl-tb-advanced', {open: !!(t.check || t.timeout || (t.files || []).length)},
+            [h('summary', {text: S.tb_advanced})]);
+        if (!isDrawing(t)) {
             const area = h('textarea.form-control.mpl-tb-mono', {rows: 6, spellcheck: 'false',
                 placeholder: 'def check(result, expected, inputs):\n    return result == expected',
                 onInput: (e) => {
@@ -496,8 +521,72 @@ class Builder {
         }
         adv.appendChild(h('div.mpl-tb-inline', null, [h('span.small', {text: S.tb_timeout}),
             this.number(t, 'timeout', {min: 1, max: 120, step: 1}), h('span.small.text-muted', {text: S.tb_timeout_help})]));
+        adv.appendChild(this.testFilesSection(t));
         body.appendChild(adv);
         return body;
+    }
+
+    testFilesSection(t) {
+        const S = this.S;
+        t.files = t.files || [];
+        const sec = h('div.mpl-tb-section.mt-2', null, [h('div.mpl-tb-section-title', {text: S.tb_testfiles}),
+            h('div.mpl-tb-help.text-muted.small.mb-1', {text: S.tb_testfiles_help})]);
+        t.files.forEach((f, fi) => {
+            const area = h('textarea.form-control.form-control-sm.mpl-tb-mono', {rows: 4, spellcheck: 'false',
+                placeholder: S.tb_testfilecontent, onInput: (e) => {
+                    f.content = e.target.value;
+                    this.save();
+                }});
+            area.value = f.content || '';
+            sec.appendChild(h('div.mpl-tb-testfile', null, [
+                h('div.mpl-tb-inline', null, [this.text(f, 'name', {class: 'mpl-tb-mono', placeholder: S.tb_testfilename}),
+                    this.iconBtn('close', S.tb_remove, () => {
+                        t.files.splice(fi, 1);
+                        this.save();
+                        this.render();
+                    }, 'btn-link.text-danger')]),
+                area,
+            ]));
+        });
+        sec.appendChild(h('button.btn.btn-link.btn-sm.p-0', {type: 'button', onClick: () => {
+            t.files.push({name: (this.fileNames()[0] || 'daten.txt'), content: ''});
+            this.save();
+            this.render();
+        }}, '+ ' + S.tb_addtestfile));
+        return sec;
+    }
+
+    fileNames() {
+        return this.dataFiles ? this.dataFiles.list().map((f) => f.name) : [];
+    }
+
+    turtleSection(t) {
+        const S = this.S;
+        t.turtle = t.turtle || {tolerance: 3, placement: 'exact', criteria: defaultTurtleCriteria()};
+        t.turtle.criteria = Object.assign(defaultTurtleCriteria(), t.turtle.criteria || {});
+        const rows = TURTLE_CRITERIA.map((key) => {
+            const c = t.turtle.criteria[key];
+            return h('tr', null, [
+                h('td', null, h('label.mpl-tb-check', null, [h('input', {type: 'checkbox', checked: c.enabled !== false,
+                    onChange: (e) => {
+                        c.enabled = e.target.checked;
+                        this.save();
+                        this.render();
+                    }}), ' ', S['crit_' + key]])),
+                h('td', null, this.number(c, 'points', {min: 0, disabled: c.enabled === false}, true)),
+            ]);
+        });
+        return h('div.mpl-tb-section', null, [
+            h('div.mpl-tb-section-title', {text: S.tb_turtlecriteria}),
+            h('div.mpl-tb-help.text-muted.small.mb-2', {text: S.tb_turtle_help}),
+            h('table.table.table-sm.mpl-tb-criteria', null, h('tbody', null, rows)),
+            h('div.mpl-tb-inline', null, [h('span.small', {text: S.tb_placement}),
+                this.select(t.turtle, 'placement', ['exact', 'translate', 'scale'].map((x) => [x, S['place_' + x]]), false)]),
+            h('div.mpl-tb-inline.mt-1', null, [h('span.small', {text: S.tb_turtletolerance}),
+                this.number(t.turtle, 'tolerance', {min: 0}),
+                h('span.small.text-muted', {text: S.tb_turtletolerance_help})]),
+            this.showExpectedField(t),
+        ]);
     }
 
     expectedSection(t, literal) {
@@ -652,7 +741,7 @@ class Builder {
  * @param {Object} S
  * @param {Function} getReference
  */
-const validationPanel = (root, contextid, S, getReference) => {
+const validationPanel = (root, contextid, S, getReference, getDraftId) => {
     const out = h('div.mpl-results.mt-2');
     const otherWrap = h('div.mpl-tb-other', {hidden: true});
     let other = null;
@@ -673,6 +762,7 @@ const validationPanel = (root, contextid, S, getReference) => {
                 tests: form.querySelector('textarea[name="tests"]').value,
                 timeout: val('timeout', 30),
                 memory: val('memory', 512),
+                draftitemid: getDraftId(),
             }}])[0];
             await renderResult(out, JSON.parse(res.json));
         } catch (e) {
@@ -710,7 +800,7 @@ const append = (el, children) => children.forEach((c) => c && el.appendChild(c))
  * @param {Builder} builder
  * @returns {Object}
  */
-const formApi = (form, editors, builder) => {
+const formApi = (form, editors, builder, dataFiles) => {
     const intro = () => {
         try {
             return getInstanceForElementId('id_introeditor');
@@ -730,14 +820,21 @@ const formApi = (form, editors, builder) => {
                 reference: editors.reference ? editors.reference.getValue() : '',
                 tests: JSON.parse(JSON.stringify(builder.tests)),
                 settings: Object.fromEntries(['allowrun', 'allowcheck', 'checkgraded', 'aihints', 'maxattempts', 'grademethod',
-                    'timeout', 'memory', 'aifree', 'aicost', 'aimax'].map((key) => {
+                    'timeout', 'memory', 'aifree', 'aicost', 'aimax', 'exammode'].map((key) => {
                     const box = form.querySelector('input[type="checkbox"][name="' + key + '"]');
                     const el = box || field(key);
                     return [key, el ? (box ? box.checked : el.value) : null];
                 })),
             };
         },
-        applyState: (task) => {
+        draftitemid: () => (dataFiles ? dataFiles.draftitemid : 0),
+        dataFiles,
+        applyState: async(task) => {
+            if (dataFiles && Array.isArray(task.files)) {
+                for (const f of task.files) {
+                    await dataFiles.putText(f.name, f.content || '');
+                }
+            }
             if (field('name') && task.name !== undefined) {
                 field('name').value = task.name;
             }
@@ -785,7 +882,7 @@ const formApi = (form, editors, builder) => {
  * @param {Number} contextid
  * @param {String} supportHtml support notice (HTML, built by the server)
  */
-export const init = async(contextid, supportHtml = '') => {
+export const init = async(contextid, supportHtml = '', limits = {}) => {
     const root = document.querySelector('[data-region="mpl-testbuilder"]');
     const textarea = document.querySelector('textarea[name="tests"]');
     if (!root || !textarea) {
@@ -806,9 +903,12 @@ export const init = async(contextid, supportHtml = '') => {
         row.hidden = !row.hidden;
     }}, S.tb_showjson);
 
+    const form = root.closest('form');
+    const dataFiles = await initDataFiles(form, contextid, limits);
     const builderEl = h('div');
     root.appendChild(builderEl);
     const builder = new Builder(builderEl, textarea, contextid, S);
+    builder.dataFiles = dataFiles;
     textarea.addEventListener('change', () => {
         try {
             const data = JSON.parse(textarea.value);
@@ -819,9 +919,8 @@ export const init = async(contextid, supportHtml = '') => {
         }
     });
     validationPanel(root, contextid, S, () => (editors.reference ? editors.reference.getValue()
-        : document.querySelector('textarea[name="reference"]').value));
+        : document.querySelector('textarea[name="reference"]').value), () => (dataFiles ? dataFiles.draftitemid : 0));
     root.appendChild(toggle);
 
-    const form = root.closest('form');
-    initAuthor(form, contextid, formApi(form, editors, builder), supportHtml);
+    initAuthor(form, contextid, formApi(form, editors, builder, dataFiles), supportHtml);
 };

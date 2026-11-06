@@ -45,6 +45,7 @@ class validate extends external_api {
             'tests' => new external_value(PARAM_RAW, 'Tests JSON'),
             'timeout' => new external_value(PARAM_INT, 'Time limit'),
             'memory' => new external_value(PARAM_INT, 'Memory limit'),
+            'draftitemid' => new external_value(PARAM_INT, 'Draft area with the data files of the form', VALUE_DEFAULT, 0),
         ]);
     }
 
@@ -57,11 +58,14 @@ class validate extends external_api {
      * @param string $tests
      * @param int $timeout
      * @param int $memory
+     * @param int $draftitemid
      * @return array
      */
-    public static function execute(int $contextid, string $code, string $reference, string $tests, int $timeout, int $memory): array {
-        global $USER;
-        $params = self::validate_parameters(self::execute_parameters(), ['contextid' => $contextid, 'code' => $code, 'reference' => $reference, 'tests' => $tests, 'timeout' => $timeout, 'memory' => $memory]);
+    public static function execute(int $contextid, string $code, string $reference, string $tests, int $timeout, int $memory,
+            int $draftitemid = 0): array {
+        $params = self::validate_parameters(self::execute_parameters(), ['contextid' => $contextid, 'code' => $code,
+            'reference' => $reference, 'tests' => $tests, 'timeout' => $timeout, 'memory' => $memory,
+            'draftitemid' => $draftitemid]);
         $context = \context::instance_by_id($params['contextid']);
         self::validate_context($context);
         $coursecontext = $context->get_course_context();
@@ -69,8 +73,9 @@ class validate extends external_api {
         \core_php_time_limit::raise(360);
         $tests = manager::decode_tests(manager::normalise_tests_json($params['tests']));
         $limits = ['timeout' => max(1, $params['timeout']), 'memory' => max(64, $params['memory'])];
+        $files = manager::files_payload(manager::draft_files($params['draftitemid']));
         $result = (new \mod_mpl\runner())->evaluate(manager::clean_code($params['code']),
-            manager::clean_code($params['reference']), $tests, $limits);
+            manager::clean_code($params['reference']), $tests, $limits, $files);
         $out = manager::filter_result($result, true);
         $out['mode'] = 'validate';
         return ['json' => json_encode($out, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)];

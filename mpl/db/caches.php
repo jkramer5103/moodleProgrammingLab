@@ -33,4 +33,11 @@ $definitions = [
         'simpledata' => false,
         'ttl' => 7200,
     ],
+    // Students are told about new teacher feedback at most once per attempt and hour.
+    'feedbacknotified' => [
+        'mode' => cache_store::MODE_APPLICATION,
+        'simplekeys' => true,
+        'simpledata' => true,
+        'ttl' => 3600,
+    ],
 ];

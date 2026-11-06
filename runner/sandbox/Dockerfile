@@ -18,7 +18,7 @@ RUN pip install --no-cache-dir "matplotlib==3.9.*" "numpy==2.1.*" "pandas==2.2.*
  && rm -f /tmp/x.png \
  && chmod -R a+rX /opt/mplconfig
 
-COPY shared/mplcodec.py sandbox/harness.py /opt/mpl/
+COPY shared/mplcodec.py sandbox/harness.py sandbox/mplturtle.py /opt/mpl/
 
 WORKDIR /tmp
 ENTRYPOINT ["python", "-I", "-X", "utf8", "/opt/mpl/harness.py"]

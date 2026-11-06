@@ -32,7 +32,8 @@ const KEYS = [
     'au_title', 'au_intro', 'au_placeholder_new', 'au_placeholder_change', 'au_create', 'au_change', 'au_working',
     'au_undo', 'au_undone', 'au_examples', 'au_example1', 'au_example2', 'au_example3', 'au_example4',
     'au_validation_ok', 'au_validation_wrong', 'au_validation_random', 'au_validation_problems', 'au_check', 'au_you', 'au_ai',
-    'au_applied', 'au_error', 'au_collapse', 'au_expand', 'au_cost',
+    'au_applied', 'au_error', 'au_collapse', 'au_expand', 'au_cost', 'au_uploadrequest', 'au_uploadbutton',
+    'au_uploaded', 'au_uploaddone', 'au_filescreated', 'au_uploadother',
 ];
 
 const call = (methodname, args) => Ajax.call([{methodname, args}])[0];
@@ -109,6 +110,43 @@ export const init = async(form, contextid, api, supportHtml) => {
         ]);
     };
 
+    const uploadBox = (m) => {
+        const want = m.upload;
+        const picker = h('input', {type: 'file', hidden: true, onChange: async(e) => {
+            const file = e.target.files[0];
+            e.target.value = '';
+            if (!file || busy || !api.dataFiles) {
+                return;
+            }
+            try {
+                busy = true;
+                await api.dataFiles.putFile(file);
+                busy = false;
+                want.done = file.name;
+                save();
+                renderLog();
+                send(fmt(S.au_uploaded, {name: file.name, size: Math.round(file.size / 1024) || 1}));
+            } catch (err) {
+                busy = false;
+                if (err && err.errorcode) {
+                    displayException(err);
+                } else {
+                    progress.textContent = (err && err.message) || S.au_error;
+                }
+            }
+        }});
+        if (want.done) {
+            return h('div.mpl-au-upload.small', null, [icon('check'), fmt(S.au_uploaddone, want.done)]);
+        }
+        return h('div.mpl-au-upload', null, [
+            h('div.small', null, [icon('file'), h('strong.mpl-tb-mono', {text: want.name || ''}),
+                want.description ? ' – ' + want.description : '']),
+            h('button.btn.btn-sm.btn-primary.mt-1', {type: 'button', onClick: () => picker.click()},
+                [icon('upload'), want.name ? fmt(S.au_uploadbutton, want.name) : S.au_uploadother]),
+            picker,
+        ]);
+    };
+
     const renderLog = () => {
         clear(log);
         chat.forEach((m) => {
@@ -116,6 +154,12 @@ export const init = async(form, contextid, api, supportHtml) => {
                 h('div.mpl-au-who', null, m.role === 'teacher' ? S.au_you : [icon('sparkles'), S.au_ai]),
                 h('div.mpl-au-text', {text: m.content}),
             ]);
+            if (m.role === 'assistant' && m.upload) {
+                item.appendChild(uploadBox(m));
+            }
+            if (m.role === 'assistant' && (m.files || []).length) {
+                item.appendChild(h('div.small.mpl-au-files', null, [icon('file'), fmt(S.au_filescreated, m.files.join(', '))]));
+            }
             if (m.role === 'assistant') {
                 const badge = validationBadge(m.validation);
                 if (badge) {
@@ -138,15 +182,16 @@ export const init = async(form, contextid, api, supportHtml) => {
 
     const undo = h('button.btn.btn-link.btn-sm', {type: 'button', hidden: true, onClick: () => {
         if (snapshot) {
-            api.applyState(snapshot);
+            api.applyState(Object.assign({}, snapshot, {files: undefined}));
             snapshot = null;
             undo.hidden = true;
             progress.textContent = S.au_undone;
         }
     }}, [icon('undo'), S.au_undo]);
 
-    const run = async() => {
-        const text = input.value.trim();
+    const run = () => send(input.value.trim());
+
+    const send = async(text) => {
         if (!text || busy) {
             return;
         }
@@ -163,6 +208,7 @@ export const init = async(form, contextid, api, supportHtml) => {
             const messages = chat.map((m) => ({role: m.role, content: m.content}));
             const start = JSON.parse((await call('mod_mpl_author_start', {
                 contextid, messages: JSON.stringify(messages), state: JSON.stringify(api.getState()),
+                draftitemid: api.draftitemid(),
             })).json);
             let job = start;
             const started = Date.now();
@@ -176,13 +222,21 @@ export const init = async(form, contextid, api, supportHtml) => {
             if (job.status !== 'done') {
                 throw new Error(job.error || S.au_error);
             }
-            snapshot = api.getState();
-            api.applyState(job.result.task);
-            chat.push({role: 'assistant', content: job.result.message || S.au_applied,
-                validation: job.result.validation, problems: job.result.problems || []});
-            input.value = '';
-            undo.hidden = false;
-            progress.textContent = S.au_applied;
+            if (job.result.request_upload && !job.result.task) {
+                chat.push({role: 'assistant', content: job.result.message || S.au_uploadrequest,
+                    upload: job.result.request_upload});
+                input.value = '';
+                progress.textContent = '';
+            } else {
+                snapshot = api.getState();
+                await api.applyState(job.result.task);
+                chat.push({role: 'assistant', content: job.result.message || S.au_applied,
+                    validation: job.result.validation, problems: job.result.problems || [],
+                    files: (job.result.task.files || []).map((f) => f.name)});
+                input.value = '';
+                undo.hidden = false;
+                progress.textContent = S.au_applied;
+            }
         } catch (e) {
             chat.pop();
             input.value = text;

@@ -61,6 +61,7 @@ class check extends external_api {
         if (empty($manager->mpl->allowcheck) && !$manager->can_grade()) {
             throw new \moodle_exception('checknotallowed', 'mpl');
         }
+        $manager->require_exam_access();
         \core_php_time_limit::raise(360);
         $result = $manager->check((int)$USER->id, $params['code']);
         return ['json' => json_encode($result, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)];

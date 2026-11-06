@@ -63,8 +63,12 @@ function mpl_supports($feature) {
  */
 function mpl_prepare_instance_data(stdClass $data): stdClass {
     $data->timemodified = time();
-    foreach (['allowrun', 'allowcheck', 'checkgraded', 'aihints'] as $flag) {
+    foreach (['allowrun', 'allowcheck', 'checkgraded', 'aihints', 'exammode'] as $flag) {
         $data->$flag = empty($data->$flag) ? 0 : 1;
+    }
+    $data->sebmode = isset($data->sebmode) ? max(0, min(3, (int)$data->sebmode)) : 0;
+    if (isset($data->sebkeys)) {
+        $data->sebkeys = trim(str_replace("\r\n", "\n", (string)$data->sebkeys));
     }
     $data->tests = \mod_mpl\manager::normalise_tests_json($data->tests ?? '');
     foreach (['starter', 'reference'] as $field) {
@@ -85,8 +89,33 @@ function mpl_add_instance($data, $mform = null) {
     $data = mpl_prepare_instance_data($data);
     $data->timecreated = $data->timemodified;
     $data->id = $DB->insert_record('mpl', $data);
+    mpl_save_data_files($data);
     mpl_grade_item_update($data);
     return $data->id;
+}
+
+/**
+ * Save the data files of the settings form (draft area) into the activity.
+ *
+ * @param stdClass $data form data incl. coursemodule and datafiles (draft item id)
+ */
+function mpl_save_data_files(stdClass $data): void {
+    if (empty($data->datafiles) || empty($data->coursemodule)) {
+        return;
+    }
+    $context = context_module::instance($data->coursemodule);
+    file_save_draft_area_files((int)$data->datafiles, $context->id, 'mod_mpl', \mod_mpl\manager::FILEAREA, 0,
+        mpl_data_file_options());
+}
+
+/**
+ * Options of the data file area.
+ *
+ * @return array
+ */
+function mpl_data_file_options(): array {
+    return ['subdirs' => 0, 'maxbytes' => \mod_mpl\manager::MAX_FILE, 'areamaxbytes' => \mod_mpl\manager::MAX_FILES_TOTAL,
+        'maxfiles' => \mod_mpl\manager::MAX_FILE_COUNT];
 }
 
 /**
@@ -101,6 +130,7 @@ function mpl_update_instance($data, $mform = null) {
     $data = mpl_prepare_instance_data($data);
     $data->id = $data->instance;
     $DB->update_record('mpl', $data);
+    mpl_save_data_files($data);
     $mpl = $DB->get_record('mpl', ['id' => $data->id], '*', MUST_EXIST);
     mpl_grade_item_update($mpl);
     mpl_update_grades($mpl);
@@ -118,9 +148,9 @@ function mpl_delete_instance($id) {
     if (!$mpl = $DB->get_record('mpl', ['id' => $id])) {
         return false;
     }
-    $DB->delete_records('mpl_submissions', ['mplid' => $id]);
-    $DB->delete_records('mpl_drafts', ['mplid' => $id]);
-    $DB->delete_records('mpl_hints', ['mplid' => $id]);
+    foreach (['mpl_feedback', 'mpl_submissions', 'mpl_drafts', 'mpl_hints', 'mpl_overrides', 'mpl_examlog'] as $table) {
+        $DB->delete_records($table, ['mplid' => $id]);
+    }
     $DB->delete_records('mpl', ['id' => $id]);
     mpl_grade_item_delete($mpl);
     return true;
@@ -258,6 +288,7 @@ function mpl_update_grades($mpl, $userid = 0, $nullifnone = true) {
 function mpl_reset_course_form_definition(&$mform) {
     $mform->addElement('header', 'mplheader', get_string('modulenameplural', 'mpl'));
     $mform->addElement('advcheckbox', 'reset_mpl_submissions', get_string('resetsubmissions', 'mpl'));
+    $mform->addElement('advcheckbox', 'reset_mpl_overrides', get_string('resetoverrides', 'mpl'));
 }
 
 /**
@@ -267,7 +298,7 @@ function mpl_reset_course_form_definition(&$mform) {
  * @return array
  */
 function mpl_reset_course_form_defaults($course) {
-    return ['reset_mpl_submissions' => 1];
+    return ['reset_mpl_submissions' => 1, 'reset_mpl_overrides' => 1];
 }
 
 /**
@@ -282,13 +313,21 @@ function mpl_reset_userdata($data) {
     if (!empty($data->reset_mpl_submissions)) {
         $mpls = $DB->get_records('mpl', ['course' => $data->courseid]);
         foreach ($mpls as $mpl) {
-            $DB->delete_records('mpl_submissions', ['mplid' => $mpl->id]);
-            $DB->delete_records('mpl_drafts', ['mplid' => $mpl->id]);
-            $DB->delete_records('mpl_hints', ['mplid' => $mpl->id]);
+            foreach (['mpl_feedback', 'mpl_submissions', 'mpl_drafts', 'mpl_hints', 'mpl_examlog'] as $table) {
+                $DB->delete_records($table, ['mplid' => $mpl->id]);
+            }
             mpl_grade_item_update($mpl, 'reset');
         }
         $status[] = ['component' => get_string('modulenameplural', 'mpl'),
             'item' => get_string('resetsubmissions', 'mpl'), 'error' => false];
+    }
+    if (!empty($data->reset_mpl_overrides)) {
+        $mplids = $DB->get_fieldset_select('mpl', 'id', 'course = ?', [$data->courseid]);
+        if ($mplids) {
+            $DB->delete_records_list('mpl_overrides', 'mplid', $mplids);
+        }
+        $status[] = ['component' => get_string('modulenameplural', 'mpl'),
+            'item' => get_string('resetoverrides', 'mpl'), 'error' => false];
     }
     return $status;
 }
@@ -305,6 +344,16 @@ function mpl_extend_settings_navigation(settings_navigation $settingsnav, naviga
         $node->add(get_string('submissions', 'mpl'),
             new moodle_url('/mod/mpl/submissions.php', ['id' => $cm->id]),
             navigation_node::TYPE_SETTING, null, 'mpl_submissions');
+    }
+    if ($cm && has_capability('mod/mpl:manageoverrides', $cm->context)) {
+        $node->add(get_string('overrides', 'mpl'),
+            new moodle_url('/mod/mpl/overrides.php', ['id' => $cm->id]),
+            navigation_node::TYPE_SETTING, null, 'mpl_overrides');
+    }
+    if ($cm && has_capability('mod/mpl:regrade', $cm->context)) {
+        $node->add(get_string('regrade', 'mpl'),
+            new moodle_url('/mod/mpl/regrade.php', ['id' => $cm->id]),
+            navigation_node::TYPE_SETTING, null, 'mpl_regrade');
     }
 }
 
@@ -325,4 +374,105 @@ function mpl_support_notice(): string {
         'stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="4" width="20" height="16" rx="2"/>' .
         '<path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>';
     return html_writer::div($icon . get_string('supportnotice', 'mpl', $link), 'mpl-support small text-muted');
+}
+
+/**
+ * Serve the data files of a task (students download them to work locally).
+ *
+ * @param stdClass $course
+ * @param stdClass $cm
+ * @param context $context
+ * @param string $filearea
+ * @param array $args
+ * @param bool $forcedownload
+ * @param array $options
+ * @return bool false if the file was not found
+ */
+function mpl_pluginfile($course, $cm, $context, $filearea, $args, $forcedownload, array $options = []) {
+    if ($context->contextlevel != CONTEXT_MODULE || $filearea !== \mod_mpl\manager::FILEAREA) {
+        return false;
+    }
+    require_login($course, true, $cm);
+    require_capability('mod/mpl:view', $context);
+    $itemid = (int)array_shift($args);
+    $filename = array_pop($args);
+    $filepath = $args ? '/' . implode('/', $args) . '/' : '/';
+    $file = get_file_storage()->get_file($context->id, 'mod_mpl', $filearea, $itemid, $filepath, $filename);
+    if (!$file || $file->is_directory()) {
+        return false;
+    }
+    send_stored_file($file, 0, 0, true, $options);
+}
+
+/**
+ * Page for students who have to use Safe Exam Browser but are not (yet) in the right SEB.
+ *
+ * @param \mod_mpl\manager $manager
+ * @return string HTML
+ */
+function mpl_seb_gate(\mod_mpl\manager $manager): string {
+    $mode = (int)$manager->mpl->sebmode;
+    $insb = \mod_mpl\seb::is_seb_useragent();
+    $out = html_writer::tag('h3', get_string('sebgatetitle', 'mpl'));
+    if ($insb) {
+        $out .= html_writer::div(get_string('sebgatewrongconfig', 'mpl'), 'alert alert-warning');
+    } else {
+        $out .= html_writer::tag('p', get_string('sebgateintro', 'mpl'));
+    }
+    if ($mode === \mod_mpl\manager::SEB_CONFIG) {
+        $out .= html_writer::div(
+            html_writer::link(\mod_mpl\seb::start_link($manager->cm->id), get_string('sebstart', 'mpl'),
+                ['class' => 'btn btn-primary btn-lg me-2 mr-2']) .
+            html_writer::link(new moodle_url('/mod/mpl/seb.php', ['id' => $manager->cm->id]),
+                get_string('sebdownload', 'mpl'), ['class' => 'btn btn-link']), 'mb-3');
+        $out .= html_writer::tag('p', get_string('sebgatehelp', 'mpl'), ['class' => 'small text-muted']);
+    } else {
+        $out .= html_writer::tag('p', get_string('sebgateschool', 'mpl'), ['class' => 'small text-muted']);
+    }
+    $out .= html_writer::div('', 'mpl-seb-jscheck small text-muted', ['data-region' => 'mpl-seb-jscheck']);
+    return $out;
+}
+
+/**
+ * Exam mode box for teachers on the activity page: how students get into the exam.
+ *
+ * @param \mod_mpl\manager $manager
+ * @return string HTML
+ */
+function mpl_exam_teacher_panel(\mod_mpl\manager $manager): string {
+    global $PAGE;
+    $mode = (int)$manager->mpl->sebmode;
+    $copy = function(string $value, string $label) {
+        return html_writer::div(
+            html_writer::tag('code', s($value), ['class' => 'mpl-copy-value']) .
+            html_writer::tag('button', $label, ['type' => 'button', 'class' => 'btn btn-sm btn-outline-secondary ms-2 ml-2',
+                'data-mpl-copy' => $value]), 'mpl-copy-row');
+    };
+    $body = html_writer::tag('p', get_string('examteacherstatus', 'mpl'));
+    if ($mode === \mod_mpl\manager::SEB_CONFIG) {
+        $link = \mod_mpl\seb::start_link($manager->cm->id);
+        $body .= html_writer::tag('p', get_string('examteacherseblink', 'mpl'));
+        $body .= $copy($link, get_string('copy', 'mpl'));
+        $body .= html_writer::div(
+            html_writer::link(new moodle_url('/mod/mpl/seb.php', ['id' => $manager->cm->id]), get_string('sebdownload', 'mpl')) .
+            ' · ' . get_string('sebconfigkey', 'mpl') . ': ' .
+            html_writer::tag('code', \mod_mpl\seb::config_key($manager->seb_settings()), ['class' => 'small']),
+            'small mt-1 mb-2');
+        $veyon = '"C:\\Program Files\\SafeExamBrowser\\Application\\SafeExamBrowser.exe" ' . $link;
+        $steps = html_writer::tag('ol', html_writer::tag('li', get_string('examveyon1', 'mpl')) .
+            html_writer::tag('li', get_string('examveyon2', 'mpl') . $copy($link, get_string('copy', 'mpl'))) .
+            html_writer::tag('li', get_string('examveyon3', 'mpl') . $copy($veyon, get_string('copy', 'mpl'))) .
+            html_writer::tag('li', get_string('examveyon4', 'mpl')));
+        $body .= html_writer::tag('details', html_writer::tag('summary', get_string('examveyontitle', 'mpl')) . $steps .
+            html_writer::div(get_string('examiservnote', 'mpl'), 'small text-muted'), ['class' => 'mpl-exam-howto']);
+    } else if ($mode === \mod_mpl\manager::SEB_KEYS) {
+        $body .= html_writer::tag('p', get_string('examteacherkeys', 'mpl', count($manager->seb_allowed_keys())));
+    } else if ($mode === \mod_mpl\manager::SEB_ANY) {
+        $body .= html_writer::tag('p', get_string('examteacherany', 'mpl'));
+    } else {
+        $body .= html_writer::tag('p', get_string('examteachernoseb', 'mpl'), ['class' => 'small text-muted']);
+    }
+    $PAGE->requires->js_call_amd('mod_mpl/exam', 'initCopy', []);
+    return html_writer::div(html_writer::tag('strong', get_string('examheader', 'mpl')) . $body,
+        'alert alert-info mpl-exam-teacher');
 }

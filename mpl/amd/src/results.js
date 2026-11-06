@@ -32,6 +32,8 @@ export const STRING_KEYS = [
     'res_noexpected', 'res_messages', 'res_showall', 'res_grade', 'res_duration', 'type_io', 'type_function',
     'type_class', 'type_file', 'type_plot', 'vis_visible', 'vis_nameonly', 'vis_hidden', 'res_nooutput', 'crit_figure', 'crit_kind', 'crit_count', 'crit_data', 'crit_title',
     'crit_xlabel', 'crit_ylabel', 'crit_legend', 'type_code', 'res_required', 'res_gate', 'res_expectedhidden',
+    'type_turtle', 'crit_drawing', 'crit_lines', 'crit_colors', 'crit_fills', 'crit_texts', 'res_yourdrawing',
+    'res_expecteddrawing',
 ];
 
 let stringsPromise = null;
@@ -108,9 +110,12 @@ const errorBox = (error, S) => {
     return h('div.mpl-error', null, [head, error.traceback ? pre(error.traceback, null, 'mpl-pre-error') : null]);
 };
 
-const plotImages = (plots, S) => {
+const plotImages = (plots, S, turtle = false) => {
     if (!plots) {
         return null;
+    }
+    if (turtle) {
+        S = Object.assign({}, S, {res_yourplot: S.res_yourdrawing, res_expectedplot: S.res_expecteddrawing});
     }
     const col = (title, list) => h('div.mpl-plot-col', null, [
         h('div.mpl-label', {text: title}),
@@ -154,18 +159,20 @@ const instanceView = (test, inst, index, S, full) => {
         if (inst.criteria) {
             parts.push(criteriaTable(inst.criteria, S));
         }
-    } else if (inst.inputs_display !== undefined && inst.inputs_display !== null && test.type !== 'plot') {
+    } else if (inst.inputs_display !== undefined && inst.inputs_display !== null && test.type !== 'plot'
+            && test.type !== 'turtle') {
         parts.push(h('div.mpl-label', {text: S.res_input}), pre(inst.inputs_display));
-    } else if (test.type === 'plot' && inst.inputs_display && inst.inputs_display !== '(keine Eingabe)') {
+    } else if ((test.type === 'plot' || test.type === 'turtle') && inst.inputs_display
+            && inst.inputs_display !== '(keine Eingabe)') {
         parts.push(h('div.mpl-label', {text: S.res_input}), pre(inst.inputs_display));
     }
     if (test.type === 'code') {
         // Criteria only.
-    } else if (test.type === 'plot') {
+    } else if (test.type === 'plot' || test.type === 'turtle') {
         if (inst.criteria) {
             parts.push(criteriaTable(inst.criteria, S));
         }
-        parts.push(plotImages(inst.plots, S));
+        parts.push(plotImages(inst.plots, S, test.type === 'turtle'));
     } else if (inst.expected_display !== null && inst.expected_display !== undefined) {
         parts.push(h('div.mpl-compare', null, [
             h('div', null, [h('div.mpl-label', {text: S.res_expected}), pre(inst.expected_display)]),

@@ -39,6 +39,9 @@ class restore_mpl_activity_structure_step extends restore_activity_structure_ste
             $paths[] = new restore_path_element('mpl_submission', '/activity/mpl/submissions/submission');
             $paths[] = new restore_path_element('mpl_draft', '/activity/mpl/drafts/draft');
             $paths[] = new restore_path_element('mpl_hint', '/activity/mpl/hints/hint');
+            $paths[] = new restore_path_element('mpl_feedback', '/activity/mpl/submissions/submission/feedbacks/feedback');
+            $paths[] = new restore_path_element('mpl_override', '/activity/mpl/overrides/override');
+            $paths[] = new restore_path_element('mpl_examlog', '/activity/mpl/examlogs/examlog');
         }
         return $this->prepare_activity_structure($paths);
     }
@@ -103,9 +106,71 @@ class restore_mpl_activity_structure_step extends restore_activity_structure_ste
     }
 
     /**
+     * Teacher comment on a submission.
+     *
+     * @param array $data
+     */
+    protected function process_mpl_feedback($data) {
+        global $DB;
+        $data = (object)$data;
+        $data->mplid = $this->get_new_parentid('mpl');
+        $data->submissionid = $this->get_new_parentid('mpl_submission');
+        $data->userid = $this->get_mappingid('user', $data->userid);
+        $data->authorid = $this->get_mappingid('user', $data->authorid) ?: $this->task->get_userid();
+        if ($data->userid) {
+            $DB->insert_record('mpl_feedback', $data);
+        }
+    }
+
+    /**
+     * Individual dates / attempts.
+     *
+     * @param array $data
+     */
+    protected function process_mpl_override($data) {
+        global $DB;
+        $data = (object)$data;
+        $data->mplid = $this->get_new_parentid('mpl');
+        if (!empty($data->userid)) {
+            $data->userid = $this->get_mappingid('user', $data->userid);
+            if (!$data->userid) {
+                return;
+            }
+        }
+        if (!empty($data->groupid)) {
+            $data->groupid = $this->get_mappingid('group', $data->groupid);
+            if (!$data->groupid) {
+                return;
+            }
+        }
+        foreach (['duedate', 'cutoffdate'] as $field) {
+            if ($data->$field !== null) {
+                $data->$field = $this->apply_date_offset($data->$field);
+            }
+        }
+        $DB->insert_record('mpl_overrides', $data);
+    }
+
+    /**
+     * Exam log entry.
+     *
+     * @param array $data
+     */
+    protected function process_mpl_examlog($data) {
+        global $DB;
+        $data = (object)$data;
+        $data->mplid = $this->get_new_parentid('mpl');
+        $data->userid = $this->get_mappingid('user', $data->userid);
+        if ($data->userid) {
+            $DB->insert_record('mpl_examlog', $data);
+        }
+    }
+
+    /**
      * Files.
      */
     protected function after_execute() {
         $this->add_related_files('mod_mpl', 'intro', null);
+        $this->add_related_files('mod_mpl', \mod_mpl\manager::FILEAREA, null);
     }
 }
